@@ -139,19 +139,36 @@ ty (/usr/local/texlive/2024/texmf-dist/tex/latex/kvoptions/kvoptions.sty)))
 (/usr/local/texlive/2024/texmf-dist/tex/latex/base/atveryend-ltx.sty)
 (/usr/local/texlive/2024/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty
 ))) (/usr/local/texlive/2024/texmf-dist/tex/latex/attachfile2/attachfile2.sty
-(/usr/local/texlive/2024/texmf-dist/tex/latex/attachfile2/atfi-dvipdfmx.def)
-(../tmp/pdfs/current/build/report.atfi)) (./values.tex)
+(/usr/local/texlive/2024/texmf-dist/tex/latex/attachfile2/atfi-dvipdfmx.def))
+(./values.tex)
 
 LaTeX Warning: Unused global option(s):
     [10.5pt,journal].
 
-(../tmp/pdfs/current/build/report.aux)
+No file report.aux.
 (/usr/local/texlive/2024/texmf-dist/tex/latex/caption/ltcaption.sty)
-(../tmp/pdfs/current/build/report.out) (../tmp/pdfs/current/build/report.out)
+
+Package hyperref Warning: Rerun to get /PageLabels entry.
+
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd) [1]
-(../tmp/pdfs/current/build/report.toc) [2] [3] [4] [5] [6] [7] [8] [9] [10]
-(./appendix_figures.tex [11] [12] [13] [14] [15]) [16]
-(../tmp/pdfs/current/build/report.aux) )
-Output written on ../tmp/pdfs/current/build/report.pdf (16 pages).
-Transcript written on ../tmp/pdfs/current/build/report.log.
+No file report.toc.
+[2] [3] [4] [5] [6] [7] [8] [9] [10] (./appendix_figures.tex [11] [12] [13]
+[14] [15]) [16]
+(/var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-report-6y9ltjh_/report.
+aux
+
+Package natbib Warning: Citation(s) may have changed.
+(natbib)                Rerun to get citations correct.
+
+)
+
+Package rerunfilecheck Warning: File `report.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+ )
+Output written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-report
+-6y9ltjh_/report.pdf (16 pages).
+Transcript written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-re
+port-6y9ltjh_/report.log.

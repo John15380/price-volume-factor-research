@@ -37,19 +37,35 @@
       "HF_LowAmpMomentum",
       "HF_Skewness"
     ],
-    "factor_signature": "12beb71859a1a8c714e85994b751cdc523b9d293f0afa12597a330b9ac74c5e5",
+    "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
     "trading_input_signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588",
     "files": {
       "features.parquet": "2d6a51526e38f964f7161475ce354b65e1ff745e74ee6fcf429bb14992c6ebe8",
       "daily_market.parquet": "7305b4e8be5acc216728ccbb4a8adb08358f8b501e8ead4ce47ec0d7ce2530f6"
+    },
+    "layout_migration": {
+      "from_commit": "8475f6c",
+      "previous_factor_signature": "12beb71859a1a8c714e85994b751cdc523b9d293f0afa12597a330b9ac74c5e5",
+      "calculation_unchanged": true,
+      "input_files_unchanged": true
     }
   },
   "sources": {
-    "code2_new.py": "1b2f25b3887f2c898b7ae7c652013696305d426e45c8248e59dba1a8237b5334",
-    "code2_research.py": "36e9d7160a49cdf78a346c2345bad6115ce5e7172fc0cbfdff3bc6a0ab334d31",
-    "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1",
-    "code2_xgboost.py": "5ed5997a06927723ffce32b5bc8f6baddfb51677ee215487948455ea42348d8c",
-    "code2_tuning.py": "e738b94aecbaec08c0f100a030e8b7fbfefeb5b90186a091a285effe2b0ef3fe",
-    "code2_pipeline.py": "4ad587ca594c8a1d82a57f5963214d3f9c0f2647af41889249cd2160dcbbfb71"
+    "code2_new.py": "e1b6e09c27517fc195ba464bcd91a5cecb8085efcbf62e096d1a9d6ec4971713"
+  },
+  "code_layout": {
+    "entry": "code2_new.py",
+    "result_generation_commit": "8475f6c",
+    "change": "single-file consolidation; no factor, model or accounting changes",
+    "previous_sources": {
+      "code2_new.py": "1b2f25b3887f2c898b7ae7c652013696305d426e45c8248e59dba1a8237b5334",
+      "code2_research.py": "36e9d7160a49cdf78a346c2345bad6115ce5e7172fc0cbfdff3bc6a0ab334d31",
+      "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1",
+      "code2_xgboost.py": "5ed5997a06927723ffce32b5bc8f6baddfb51677ee215487948455ea42348d8c",
+      "code2_tuning.py": "e738b94aecbaec08c0f100a030e8b7fbfefeb5b90186a091a285effe2b0ef3fe",
+      "code2_pipeline.py": "4ad587ca594c8a1d82a57f5963214d3f9c0f2647af41889249cd2160dcbbfb71"
+    },
+    "unchanged_function_class_asts": 59,
+    "model_retrained_for_layout_only_change": false
   }
 }

@@ -297,24 +297,17 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 报告同时给出当前规则下的多头和多空收益，避免将分组价差直接解释为多头盈利。
 参数搜索提高了模型选择的完整性，但不保证任何期限或股票池都有更高的样本外收益。
 
-当前代码入口为\path{code2_new.py}；唯一实验目录为\path{results/}，报告源文件为\path{report/}，
-交付文件为\path{output/pdf/report.pdf}及\path{output/submission.zip}。
-历史报告、实验及原作业辅助产物移至\path{archive/}并保留校验记录，原始行情保持在\path{data/}。
-本地Git从原\path{code.py}、\path{code2.py}开始记录版本；上一轮快照为本轮提交的直接父版本。
+当前仅保留一个代码文件\path{code2_new.py}，包含因子、交易状态、回测、模型调参、测试与报告生成。
+唯一实验目录为\path{results/}，报告源文件为\path{report/}，最终报告直接输出为根目录的\path{report.pdf}。
+原始行情保持在\path{data/}；历史代码、旧报告及原作业辅助素材仅保存在本地Git记录中。
+本轮仅整合文件与运行入口，因子定义、调参规则和收益序列均保持不变，测试与账本核验重新执行。
 
 \subsection*{代码附件与复现}
-\begin{itemize}
-\item \attachfile[icon=Paperclip]{../code2_new.py}\quad 十组持仓、费用账本和命令行入口。
-\item \attachfile[icon=Paperclip]{../code2_research.py}\quad 研报因子定义与截面处理。
-\item \attachfile[icon=Paperclip]{../code2_trading_data.py}\quad 实际交易状态与官方复权。
-\item \attachfile[icon=Paperclip]{../code2_xgboost.py}\quad 持有期标签及训练样本时间隔离。
-\item \attachfile[icon=Paperclip]{../code2_tuning.py}\quad 训练期筛选和参数搜索。
-\item \attachfile[icon=Paperclip]{../code2_pipeline.py}\quad 当前唯一实验流程。
-\end{itemize}
+\noindent \attachfile[icon=Paperclip]{../code2_new.py}\quad 完整实验、内置测试与报告生成的唯一源码。
 \noindent 在作业根目录执行：\par
 \texttt{python code2\_new.py --with-xgboost}\par
-\texttt{python report/build\_report.py}\par
-\texttt{python -m unittest discover -s tests -p 'test\_code2*.py'}
+\texttt{python code2\_new.py --report}\par
+\texttt{python code2\_new.py --self-test}
 
 \subsection*{参考文献}
 \begin{thebibliography}{9}\footnotesize
