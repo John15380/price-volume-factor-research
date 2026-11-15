@@ -76,7 +76,7 @@ class HistoricalTradingDataTests(unittest.TestCase):
         self.assertTrue(day.CanSell)
 
     def test_st_long_reduction_is_not_blocked_by_admission_rule(self):
-        book=base.Portfolio(pd.Index(['000001']),self.cfg,'Group5')
+        book=base.Portfolio(pd.Index(['000001']),self.cfg,'Group10')
         yes=np.array([True]);no=np.array([False])
         book.execute(np.array([10.]),yes,yes,self.dates[0],np.array([1.]),yes)
         book.execute(np.array([10.]),yes,yes,self.dates[1],np.array([0.]),no)
@@ -159,9 +159,9 @@ class HistoricalTradingDataTests(unittest.TestCase):
         groups,schedule=base.signal_groups(features,'f',dates,5)
         self.assertIn('000000',set(groups[groups.TradingDay.eq(dates[0])].SecuCode))
         ledger,trades=base.backtest(groups,schedule,market,self.cfg)
-        first=ledger[(ledger.TradingDay==dates[1])&ledger.Portfolio.eq('Group5')].iloc[0]
-        self.assertAlmostEqual(first.Cash,.25)
-        self.assertEqual(first.Positions,3)
+        first=ledger[(ledger.TradingDay==dates[1])&ledger.Portfolio.eq('Group10')].iloc[0]
+        self.assertAlmostEqual(first.Cash,.5)
+        self.assertEqual(first.Positions,1)
         self.assertEqual(first.AdmissionBlockedOrders,1)
 
 

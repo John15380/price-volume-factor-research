@@ -1,9 +1,8 @@
 """默认按本地研报构造量价因子并逐日回测，保留原 code2.py 不变。
 
-运行：python code2_new.py --help
-完整研究与模型：python code2_new.py --with-xgboost
-第一版简化因子：python code2_new.py --legacy-factors --ls-leg-weight 0.5
-验证：python -m unittest discover -s tests -p 'test_code2_new.py'
+运行：python code2_new.py --with-xgboost
+验证：python -m unittest discover -s tests -p 'test_code2*.py'
+当前流程：9个候选因子、训练期去重和择优、季度调参/月度重训、10分组。
 
 口径：T 收盘后信号，T+1 开盘执行，支持固定 5/10/20 日及自然月末调仓。
 默认研报流程接入官方复权因子、ST、停复牌时段及实际涨跌停价，
@@ -11,10 +10,9 @@
 研究采用可分割份额，不模拟整手、冲击成本、现金分红到账时点或税费明细。
 按09:30停牌状态及实际限价做方向性成交过滤。无法买入的资金留现金，
 无法减仓的头寸保留并逐日重试。未知行情按最近估值保留，并明确报告。
-仅 --legacy-factors 旧版对照保留参考昨收复权及4.9%开盘跳空近似过滤。
 多空组合为理论诊断：每腿目标由ls_leg_weight指定，默认各100%净资产，
 设0.5可作各50%的对照。假定可借券及相应保证金融资；借券费率可配置。
-它与五个多头组均有各自的持仓、现金及实际成交费用账本。
+它与十个多头组均有各自的持仓、现金及实际成交费用账本。
 """
 
 from __future__ import annotations
@@ -50,7 +48,7 @@ KEYS = ["TradingDay", "SecuCode"]
 @dataclass
 class Config:
     data_dir: Path = BASE / "data"
-    output_dir: Path = BASE / "results_code2_definitions"
+    output_dir: Path = BASE / "results"
     start: str = "2016-01-04"
     end: str = "2018-12-31"
     index: str = "500"
@@ -64,6 +62,7 @@ class Config:
     annual_risk_free: float = 0.0
     min_cross_section: int = 20
     ls_leg_weight: float = 1.0
+    n_groups: int = 10
 
 
 def normalize_codes(values):
@@ -386,17 +385,17 @@ class Market:
                    matrix("CanIncrease").fillna(False).to_numpy(bool) if "CanIncrease" in daily else None)
 
 
-def signal_groups(features, factor, calendar, period_days, min_stocks=20, low_is_long=True):
+def signal_groups(features, factor, calendar, period_days, min_stocks=20, low_is_long=True, n_groups=10):
     """独立交易日历调仓；先按当时因子分组，不读取任何未来收益。"""
     schedule = pd.DatetimeIndex(calendar)[::period_days]
     frames = []
     for day in schedule:
         sub = features.loc[features.TradingDay.eq(day), KEYS + [factor]].dropna(subset=[factor]).copy()
-        if len(sub) < min_stocks or sub[factor].nunique() < 5:
+        if len(sub) < max(min_stocks,n_groups) or sub[factor].nunique() < n_groups:
             continue  # 这个预定调仓日目标为现金，不把下一个有效日期提前。
-        # Group5固定为看好的组；相同因子值用股票代码稳定打破平局。
+        # 最后一组固定为看好的组；相同因子值用股票代码稳定打破平局。
         sub = sub.sort_values([factor, "SecuCode"], ascending=[not low_is_long, True])
-        sub["Group"] = np.arange(len(sub)) * 5 // len(sub) + 1
+        sub["Group"] = np.arange(len(sub)) * n_groups // len(sub) + 1
         frames.append(sub)
     columns = KEYS + [factor, "Group"]
     return (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=columns)), schedule
@@ -514,7 +513,9 @@ class Portfolio:
 
 def backtest(groups, schedule, market, cfg):
     n = len(market.symbols)
-    books = [Portfolio(market.symbols, cfg, f"Group{i}") for i in range(1, 6)]
+    if cfg.n_groups < 2:
+        raise ValueError("分组数至少为2。")
+    books = [Portfolio(market.symbols, cfg, f"Group{i}") for i in range(1, cfg.n_groups+1)]
     books.append(Portfolio(market.symbols, cfg, "TheoreticalLS"))
     group_map = {day: sub for day, sub in groups.groupby("TradingDay")}
     dates = market.dates
@@ -532,18 +533,18 @@ def backtest(groups, schedule, market, cfg):
         closing = np.where(np.isfinite(market.close[t]), market.close[t], previous_close)
         new_weights = None
         if day in execution:
-            new_weights = np.zeros((6, n))
+            new_weights = np.zeros((cfg.n_groups+1, n))
             sub = group_map.get(execution[day])
             if sub is not None:
-                for group in range(1, 6):
+                for group in range(1, cfg.n_groups+1):
                     columns = market.symbols.get_indexer(sub.loc[sub.Group.eq(group), "SecuCode"])
                     if (columns < 0).any():
                         raise ValueError("信号股票不在行情矩阵中。")
                     if len(columns):
                         new_weights[group - 1, columns] = 1 / len(columns)
-                new_weights[5] = cfg.ls_leg_weight * (new_weights[4] - new_weights[0])
+                new_weights[cfg.n_groups] = cfg.ls_leg_weight * (new_weights[cfg.n_groups-1] - new_weights[0])
         if t == len(dates) - 1:
-            new_weights = np.zeros((6, n))  # 样本末日开盘尝试平仓；受阻的仓位保留。
+            new_weights = np.zeros((cfg.n_groups+1, n))  # 样本末日开盘尝试平仓；受阻的仓位保留。
         for b, book in enumerate(books):
             borrow = np.sum(np.maximum(-book.units, 0) * np.nan_to_num(previous_close))
             borrow *= cfg.annual_borrow_fee / cfg.annual_days
@@ -738,41 +739,24 @@ def run_pipeline(cfg, selected_factors=FACTORS, selected_periods=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data-dir", type=Path, default=BASE / "data")
-    parser.add_argument("--output-dir", type=Path, default=BASE / "results_code2_definitions")
-    parser.add_argument("--start", default="2016-01-04")
-    parser.add_argument("--end", default="2018-12-31")
-    parser.add_argument("--index", choices=["300", "500"], default="500")
-    parser.add_argument("--factor", choices=FACTORS, action="append", help="可重复指定；默认全部六个")
-    parser.add_argument("--period", choices=list(PERIODS), action="append", help="可重复指定；默认三种期限")
-    parser.add_argument("--one-way-fee", type=float, default=0.0015)
-    parser.add_argument("--open-gap-limit", type=float, default=0.049)
-    parser.add_argument("--annual-borrow-fee", type=float, default=0.0)
-    parser.add_argument("--annual-risk-free", type=float, default=0.0)
-    parser.add_argument("--with-xgboost", action="store_true", help="增加按月滚动XGBoost及共同样本比较")
-    parser.add_argument("--model-only", action="store_true", help="复用本输出目录的预处理因子，仅训练模型及共同样本回测")
-    parser.add_argument("--predict-start", default="2017-02-01", help="XGBoost样本外预测起点")
-    parser.add_argument("--research", action="store_true", default=True, help="采用研报核对后的因子和回测（默认）")
-    parser.add_argument("--legacy-factors", dest="research", action="store_false", help="运行第一版简化因子，仅用于旧结果对照")
-    parser.add_argument("--ls-leg-weight", type=float, default=1.0, help="每腿多空名义目标，研报研究默认1；0.5为总敞口100%对照")
-    parser.add_argument("--universe", choices=["500", "all"], default="500", help="研报模式的股票池")
-    args = parser.parse_args()
-    factors = args.factor or list(FACTORS)
-    periods = {name: PERIODS[name] for name in args.period} if args.period else PERIODS
-    config_args = {key: value for key, value in vars(args).items()
-                   if key not in ("factor", "period", "with_xgboost", "model_only", "predict_start", "research", "universe")}
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    cfg = Config(**config_args)
-    if args.research:
-        from code2_research import run_research
-        run_research(cfg, args.universe, args.with_xgboost or args.model_only, args.predict_start, args.model_only)
-        return
-    if not args.model_only:
-        run_pipeline(cfg, factors, periods)
-    if args.with_xgboost or args.model_only:
-        from code2_xgboost import run_xgboost
-        run_xgboost(cfg, args.predict_start)
+    parser.add_argument('--data-dir',type=Path,default=BASE/'data')
+    parser.add_argument('--output-dir',type=Path,default=BASE/'results')
+    parser.add_argument('--with-xgboost',action='store_true',help='执行完整的训练期筛选和调参')
+    parser.add_argument('--prepare-only',action='store_true')
+    parser.add_argument('--models-only',action='store_true')
+    parser.add_argument('--predict-start',default='2017-02-01')
+    parser.add_argument('--trials',type=int,default=96)
+    parser.add_argument('--finalists',type=int,default=16)
+    parser.add_argument('--groups',type=int,default=10)
+    parser.add_argument('--one-way-fee',type=float,default=.0015)
+    parser.add_argument('--ls-leg-weight',type=float,default=1.)
+    args=parser.parse_args()
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
+    from code2_pipeline import run
+    cfg=Config(data_dir=args.data_dir,output_dir=args.output_dir,n_groups=args.groups,
+               one_way_fee=args.one_way_fee,ls_leg_weight=args.ls_leg_weight)
+    run(cfg,with_models=args.with_xgboost or args.models_only,models_only=args.models_only,
+        prepare_only=args.prepare_only,predict_start=args.predict_start,trials=args.trials,finalists=args.finalists)
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':main()

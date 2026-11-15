@@ -1,0 +1,27 @@
+{
+  "xgboost_version": "3.2.0",
+  "candidate_features": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP",
+    "HF_CDPDP4",
+    "HF_LowAmpMomentum",
+    "HF_Skewness"
+  ],
+  "horizon": 20,
+  "predict_start": "2017-02-01",
+  "training_window_months": 12,
+  "trials": 96,
+  "finalists": 16,
+  "quarterly_tuning": true,
+  "monthly_selection_and_refit": true,
+  "seed": 20261115,
+  "purge": "training LabelEnd < validation start / outer prediction month start",
+  "native_missing_values": true,
+  "prediction_admission": "at least 3 contemporaneous available candidate factors",
+  "correlation": "training daily cross-sectional Spearman, equally weighted dates; greedy representative by |mean RankIC|/std",
+  "target": "cross-section demeaned adjusted N-day open return"
+}

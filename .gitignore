@@ -10,7 +10,7 @@ __pycache__/
 *.nbi
 *.parquet
 *.zip
-**/models/
+**/models/*.json
 **/research_cache/
 **/matplotlib_cache/
 **/system_cache/

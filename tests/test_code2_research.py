@@ -94,7 +94,6 @@ class PaperConstructionTests(unittest.TestCase):
         rolling.PP*=100
         b=r.preprocess(rolling,keys,daily,cap)
         np.testing.assert_allclose(a.HF_CDPDP,b.HF_CDPDP,atol=1e-10)
-        self.assertLess(a.Legacy_CDPDPRawSum.corr(b.Legacy_CDPDPRawSum),.99)
 
     def test_cpv_final_factor_contains_variation_and_trend(self):
         rolling,keys,daily,cap=self.synthetic()
@@ -102,7 +101,7 @@ class PaperConstructionTests(unittest.TestCase):
         rolling.PVTrend=rolling.PVTrend[::-1].to_numpy()
         b=r.preprocess(rolling,keys,daily,cap)
         self.assertLess(a.HF_CPV.corr(b.HF_CPV),.99)
-        self.assertAlmostEqual(a.Legacy_CPVMean.corr(b.Legacy_CPVMean),1.)
+        self.assertAlmostEqual(a.HF_CDPDP.corr(b.HF_CDPDP),1.)
 
     def test_calendar_month_uses_true_variable_holding_length(self):
         dates=pd.bdate_range('2016-02-01','2016-06-03')

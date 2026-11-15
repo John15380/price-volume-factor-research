@@ -1,0 +1,33 @@
+{
+  "series": 726,
+  "trades": 3879682,
+  "ledger_rows": 435996,
+  "tests_passed": 65,
+  "groups": 10,
+  "candidates": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP",
+    "HF_CDPDP4",
+    "HF_LowAmpMomentum",
+    "HF_Skewness"
+  ],
+  "monthly_models": 69,
+  "searches": 24,
+  "cv_fits": 3456,
+  "round_trip_fee": 0.003,
+  "training_label_time_checked": true,
+  "inner_purge_checked": true,
+  "selected_pair_correlations_checked": true,
+  "source_hashes": {
+    "code2_new.py": "1b2f25b3887f2c898b7ae7c652013696305d426e45c8248e59dba1a8237b5334",
+    "code2_research.py": "36e9d7160a49cdf78a346c2345bad6115ce5e7172fc0cbfdff3bc6a0ab334d31",
+    "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1",
+    "code2_xgboost.py": "5ed5997a06927723ffce32b5bc8f6baddfb51677ee215487948455ea42348d8c",
+    "code2_tuning.py": "e738b94aecbaec08c0f100a030e8b7fbfefeb5b90186a091a285effe2b0ef3fe",
+    "code2_pipeline.py": "4ad587ca594c8a1d82a57f5963214d3f9c0f2647af41889249cd2160dcbbfb71"
+  }
+}

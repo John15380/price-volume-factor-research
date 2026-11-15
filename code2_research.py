@@ -27,9 +27,8 @@ import code2_trading_data as trading
 
 LOG = logging.getLogger("code2_research")
 PRIMARY = ("HF_SmartMoney", "HF_CPV", "HF_CDPDP", "HF_IdealAmplitude", "HF_IdealReversal", "HF_CDPP")
-ADDITIONAL = ("HF_CDPDP4", "HF_LowAmpMomentum", "HF_Skewness", "HF_Tail_Reversal")
-CONTROL = ("Legacy_SmartDailyMean", "Legacy_CPVMean", "Legacy_CDPDPRawSum", "Legacy_Amplitude")
-FACTORS = PRIMARY + ADDITIONAL + CONTROL
+ADDITIONAL = ("HF_CDPDP4", "HF_LowAmpMomentum", "HF_Skewness")
+FACTORS = PRIMARY + ADDITIONAL
 LOW_IS_LONG = {factor: factor != "HF_LowAmpMomentum" for factor in FACTORS}
 DAY_FIELDS = ("PV", "PP", "PM", "MP", "MM", "DP_Pos_P", "DP_Neg_P", "Skew", "Tail", "OrdinaryAmp", "SmartDaily", "AvgTrade")
 
@@ -303,11 +302,8 @@ def preprocess(rolling, eligible, daily, cap):
         # 开源2021仅声明截面去极值/标准化，没有把所有因子统一行业正交化。
         for target,source in [("HF_SmartMoney","SmartPooled"),("HF_IdealAmplitude","IdealAmp"),
                               ("HF_IdealReversal","IdealRev"),("HF_LowAmpMomentum","LowAmpMom"),
-                              ("HF_Skewness","Skew"),("HF_Tail_Reversal","Tail"),
-                              ("Legacy_SmartDailyMean","SmartDaily"),("Legacy_Amplitude","OrdinaryAmp")]:
+                              ("HF_Skewness","Skew")]:
             out[target] = zscore(winsor(day[source]))
-        out["Legacy_CPVMean"] = zscore(residual(winsor(day.PV),day[["LnCap"]+base.CONTROLS]))
-        out["Legacy_CDPDPRawSum"] = zscore(residual(winsor(day.PP+day.MM),day[["LnCap"]]))
         outputs.append(out)
     result = pd.concat(outputs,ignore_index=True).sort_values(base.KEYS)
     return result
@@ -318,14 +314,14 @@ def month_schedule(calendar):
     return pd.DatetimeIndex(frame.groupby(frame.index.to_period("M")).max())
 
 
-def scheduled_groups(features,factor,schedule,low=True):
+def scheduled_groups(features,factor,schedule,low=True,n_groups=10):
     pieces = []
     for date in schedule:
         sub = features.loc[features.TradingDay.eq(date),base.KEYS+[factor]].dropna().copy()
-        if len(sub)<20 or sub[factor].nunique()<5:
+        if len(sub)<max(20,n_groups) or sub[factor].nunique()<n_groups:
             continue
         sub = sub.sort_values([factor,"SecuCode"],ascending=[not low,True])
-        sub["Group"] = np.arange(len(sub))*5//len(sub)+1
+        sub["Group"] = np.arange(len(sub))*n_groups//len(sub)+1
         pieces.append(sub)
     return pd.concat(pieces,ignore_index=True) if pieces else pd.DataFrame(columns=base.KEYS+[factor,"Group"])
 
@@ -353,11 +349,11 @@ def export_case(features,factor,name,market,cfg,folder,low=True,with_gross=False
     if name=="MonthEnd":
         schedule=month_schedule(market.dates)
         # 避免把首个不完整月的最后一天提前至样本起点；正常从月底形成信号。
-        groups=scheduled_groups(features,factor,schedule,low)
+        groups=scheduled_groups(features,factor,schedule,low,cfg.n_groups)
         ic=calendar_ic(groups,market,factor,schedule,low)
     else:
         days=base.PERIODS[name]
-        groups,schedule=base.signal_groups(features,factor,market.dates,days,cfg.min_cross_section,low)
+        groups,schedule=base.signal_groups(features,factor,market.dates,days,cfg.min_cross_section,low,cfg.n_groups)
         ic=base.calc_ic(groups,market,factor,days,low)
     ledger,trades=base.backtest(groups,schedule,market,cfg)
     folder.mkdir(parents=True,exist_ok=True)
@@ -440,66 +436,8 @@ def icir_scores(features,market,days,output,predict_start):
     return result
 
 
-def run_research(cfg,universe_name="500",with_xgboost=True,predict_start="2017-02-01",model_only=False):
-    output=Path(cfg.output_dir)
-    output.mkdir(parents=True,exist_ok=True)
-    if not 0<cfg.ls_leg_weight<=1 or cfg.one_way_fee<0:
-        raise ValueError("每腿权重须在(0,1]，费率须非负。")
-    calendar,symbols,daily,eligible,industry,cap=load_data(cfg,universe_name)
-    LOG.info("研报模式：%s，候选%d只，原始股票池年龄/交易状态过滤后%d条",universe_name,len(symbols),len(eligible))
-    if model_only:
-        features=pd.read_parquet(output/"processed_features.parquet")
-    else:
-        rolling=calculate_factors(cfg,calendar,symbols,daily)
-        features=preprocess(rolling,eligible,daily,cap)
-        features.to_parquet(output/"processed_features.parquet",index=False)
-        features[base.KEYS+list(PRIMARY)].notna().groupby(features.TradingDay).sum().to_csv(output/"feature_coverage.csv")
-    dates=calendar[calendar>=max(pd.Timestamp(cfg.start),pd.Timestamp("2016-01-29"))]
-    market=base.Market.from_daily(daily,dates)
-    records=[]
-    for factor in (() if model_only else FACTORS):
-        frequencies=list(base.PERIODS)+["MonthEnd"] if factor in PRIMARY else ["MonthEnd"]
-        for name in frequencies:
-            LOG.info("研报因子回测：%s / %s",factor,name)
-            records+=export_case(features,factor,name,market,cfg,output/factor/name,LOW_IS_LONG[factor],True)
-    if records:
-        pd.DataFrame(records).to_csv(output/"summary.csv",index=False)
-    # 配对消融：同股票样本/同执行/同敞口，仅改变公式；不在不同股票池间比较收益。
-    pairs=[("HF_SmartMoney","Legacy_SmartDailyMean"),("HF_CPV","Legacy_CPVMean"),
-           ("HF_CDPDP","Legacy_CDPDPRawSum"),("HF_IdealAmplitude","Legacy_Amplitude")]
-    paired=[]
-    for paper,legacy in ([] if model_only else pairs):
-        common=features.dropna(subset=[paper,legacy])
-        for factor in [paper,legacy]:
-            paired+=export_case(common,factor,"MonthEnd",market,cfg,output/"paired"/paper/factor,True,True)
-    if paired:
-        pd.DataFrame(paired).to_csv(output/"paired_summary.csv",index=False)
-    if with_xgboost:
-        whole_market=base.Market.from_daily(daily,calendar)
-        common=features[base.KEYS+list(PRIMARY)].dropna(subset=list(PRIMARY)).copy()
-        test_dates=calendar[calendar>=pd.Timestamp(predict_start)]
-        test_market=base.Market.from_daily(daily,test_dates)
-        test=common[common.TradingDay.isin(test_dates)]
-        comparison=[]
-        for name,days in base.PERIODS.items():
-            pred=boosting.walk_forward(common,whole_market,days,output/"xgboost"/name,predict_start,feature_cols=PRIMARY)
-            pd.testing.assert_frame_equal(test[base.KEYS].sort_values(base.KEYS).reset_index(drop=True),
-                                          pred[base.KEYS].sort_values(base.KEYS).reset_index(drop=True))
-            for factor in PRIMARY:
-                comparison+=export_case(test,factor,name,test_market,cfg,output/"comparison"/factor/name,True)
-            comparison+=export_case(pred,"Pred_Score",name,test_market,cfg,output/"comparison/Pred_Score"/name,False)
-            combined=icir_scores(common,whole_market,days,output/"icir"/name,predict_start)
-            comparison+=export_case(combined,"ICIR_12",name,test_market,cfg,output/"comparison/ICIR_12"/name,False)
-        pd.DataFrame(comparison).to_csv(output/"comparison/summary.csv",index=False)
-    manifest={"universe":universe_name,"candidates":len(symbols),"start":str(dates[0].date()),"end":str(dates[-1].date()),
-              "primary_factors":PRIMARY,"ls_leg_weight":cfg.ls_leg_weight,"one_way_fee":cfg.one_way_fee,
-              "ideal_amplitude":"20 calendar trading days; exclude suspension and one-price upper/lower-limit days; >=10 valid days; floor(valid_days*0.25) at each price tail; source 20200516 p.5 and 20210924 p.8",
-              "legacy_additional_not_defined_in_supplied_reports":["HF_Skewness","HF_Tail_Reversal"],
-              "execution":"09:30 suspension timing and actual raw up/down price bounds; equality blocked in that direction; ST prohibits increases, allows reductions",
-              "calendar_month":"last observed trading day each calendar month; IC exit next scheduled entry",
-              "unavailable":"exact listing dates (first positive quote used); Barra 10 styles; L2 order-side/size fields; borrowing supply and opening queue priority",
-              "degenerate_correlation":"0 for less than 3 pairs or zero variation, as original code2; missing whole days remain missing",
-              "sources":{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),Path(base.__file__),Path(boosting.__file__),Path(trading.__file__)]},
-              "trading_input_files":trading.input_manifest(cfg.data_dir),"aliases":trading.ALIASES}
-    (output/"research_config.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
-    LOG.info("研报修订运行完成：%s",output)
+def run_research(cfg,universe_name='500',with_xgboost=True,predict_start='2017-02-01',model_only=False):
+    from code2_pipeline import run
+    if universe_name != '500':
+        raise ValueError('当前整理版以动态中证500为主样本。')
+    return run(cfg,with_models=with_xgboost,models_only=model_only,predict_start=predict_start)

@@ -60,7 +60,7 @@ class ModelTimingTests(unittest.TestCase):
         features = self.features.rename(columns={base.FACTORS[0]: "Pred_Score"})
         groups, _ = base.signal_groups(features, "Pred_Score", self.dates, 5, low_is_long=False)
         first = groups[groups.TradingDay.eq(self.dates[0])]
-        self.assertEqual(set(first[first.Group.eq(5)].SecuCode), set(self.symbols[-4:]))
+        self.assertEqual(set(first[first.Group.eq(10)].SecuCode), set(self.symbols[-2:]))
 
 
 if __name__ == "__main__":

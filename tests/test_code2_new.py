@@ -120,7 +120,7 @@ class CorrectedPipelineTests(unittest.TestCase):
         self.assertEqual(list(schedule), list(market.dates[::5]))
         self.assertNotIn(market.dates[6], set(groups.TradingDay))
         first = groups[groups.TradingDay.eq(market.dates[0])]
-        self.assertEqual(set(first[first.Group.eq(5)].SecuCode), set(market.symbols[:4]))
+        self.assertEqual(set(first[first.Group.eq(10)].SecuCode), set(market.symbols[:2]))
 
     def test_ic_uses_matching_n_day_open_horizon(self):
         market = self.market(periods=25)
@@ -201,9 +201,9 @@ class CorrectedPipelineTests(unittest.TestCase):
         market.sell[-1] = False
         groups, schedule = m.signal_groups(self.features(market), "factor", market.dates, 5)
         ledger, _ = m.backtest(groups, schedule, market, self.cfg)
-        final = ledger[(ledger.TradingDay == market.dates[-1]) & (ledger.Portfolio == "Group5")].iloc[0]
-        self.assertEqual(final.Positions, 4)
-        self.assertEqual(final.PendingReductions, 4)
+        final = ledger[(ledger.TradingDay == market.dates[-1]) & (ledger.Portfolio == "Group10")].iloc[0]
+        self.assertEqual(final.Positions, 2)
+        self.assertEqual(final.PendingReductions, 2)
         self.assertAlmostEqual(final.NAV, 1)
 
     def test_ledger_cash_positions_and_trades_reconcile(self):
