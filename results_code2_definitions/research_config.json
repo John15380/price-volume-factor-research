@@ -1,0 +1,135 @@
+{
+  "universe": "500",
+  "candidates": 839,
+  "start": "2016-01-29",
+  "end": "2018-12-28",
+  "primary_factors": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP"
+  ],
+  "ls_leg_weight": 1.0,
+  "one_way_fee": 0.0015,
+  "ideal_amplitude": "20 calendar trading days; exclude suspension and one-price upper/lower-limit days; >=10 valid days; floor(valid_days*0.25) at each price tail; source 20200516 p.5 and 20210924 p.8",
+  "legacy_additional_not_defined_in_supplied_reports": [
+    "HF_Skewness",
+    "HF_Tail_Reversal"
+  ],
+  "execution": "09:30 suspension timing and actual raw up/down price bounds; equality blocked in that direction; ST prohibits increases, allows reductions",
+  "calendar_month": "last observed trading day each calendar month; IC exit next scheduled entry",
+  "unavailable": "exact listing dates (first positive quote used); Barra 10 styles; L2 order-side/size fields; borrowing supply and opening queue priority",
+  "degenerate_correlation": "0 for less than 3 pairs or zero variation, as original code2; missing whole days remain missing",
+  "sources": {
+    "code2_research.py": "ad7bc68e50fe8f4d5b4af4446dac34853b14d8d082ac4f242d176894df02f9b9",
+    "code2_new.py": "2735937400bc711d22fd3ae190b7c9b1f90393a3b4579ad4b8e7b20eb8c95fc2",
+    "code2_xgboost.py": "5b1dcaf3e8152af241eae0e2e46b6154fa3cc4dffd075167e309cfd1730c936a",
+    "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1"
+  },
+  "trading_input_files": {
+    "files": [
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/ST情况/is_st.csv",
+        "size": 4325112,
+        "mtime_ns": 1794643406171529535
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/停复牌情况/is_suspend.csv",
+        "size": 6236233,
+        "mtime_ns": 1794643438172461264
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2014.csv",
+        "size": 17886493,
+        "mtime_ns": 1794643479425501166
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2015.csv",
+        "size": 19549395,
+        "mtime_ns": 1794643447660236796
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2016.csv",
+        "size": 20591323,
+        "mtime_ns": 1794643433122414523
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2017.csv",
+        "size": 23293886,
+        "mtime_ns": 1794643479321209011
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2018.csv",
+        "size": 24656735,
+        "mtime_ns": 1794643478388488270
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2019.csv",
+        "size": 25381724,
+        "mtime_ns": 1794643457967626550
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2020.csv",
+        "size": 26415777,
+        "mtime_ns": 1794643480333027357
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/涨跌停价/A_share_limit_2021.csv",
+        "size": 28549733,
+        "mtime_ns": 1794643476961398174
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2013.csv",
+        "size": 14119831,
+        "mtime_ns": 1794643407716870268
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2014.csv",
+        "size": 14928135,
+        "mtime_ns": 1794643421887235438
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2015.csv",
+        "size": 16138349,
+        "mtime_ns": 1794643403092816262
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2016.csv",
+        "size": 17442633,
+        "mtime_ns": 1794643410949078674
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2017.csv",
+        "size": 19936044,
+        "mtime_ns": 1794643427966708794
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2018.csv",
+        "size": 21565360,
+        "mtime_ns": 1794643442478172060
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2019.csv",
+        "size": 22480554,
+        "mtime_ns": 1794643428610448870
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2020.csv",
+        "size": 24927628,
+        "mtime_ns": 1794643458495363695
+      },
+      {
+        "path": "/Users/john/yhy/Course/finance/量化投资2.14/homework-量化投资/作业二/data/复权因子/adj_factor_2021.csv",
+        "size": 26779875,
+        "mtime_ns": 1794643418937379955
+      }
+    ],
+    "signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588"
+  },
+  "aliases": {
+    "601313": "601360",
+    "000022": "001872"
+  }
+}

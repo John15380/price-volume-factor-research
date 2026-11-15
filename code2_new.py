@@ -50,7 +50,7 @@ KEYS = ["TradingDay", "SecuCode"]
 @dataclass
 class Config:
     data_dir: Path = BASE / "data"
-    output_dir: Path = BASE / "results_code2_constraints"
+    output_dir: Path = BASE / "results_code2_definitions"
     start: str = "2016-01-04"
     end: str = "2018-12-31"
     index: str = "500"
@@ -739,7 +739,7 @@ def run_pipeline(cfg, selected_factors=FACTORS, selected_periods=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", type=Path, default=BASE / "data")
-    parser.add_argument("--output-dir", type=Path, default=BASE / "results_code2_constraints")
+    parser.add_argument("--output-dir", type=Path, default=BASE / "results_code2_definitions")
     parser.add_argument("--start", default="2016-01-04")
     parser.add_argument("--end", default="2018-12-31")
     parser.add_argument("--index", choices=["300", "500"], default="500")

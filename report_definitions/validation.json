@@ -1,0 +1,17 @@
+{
+  "series": 588,
+  "trades": 12157512,
+  "rows": 383076,
+  "tests_passed": 58,
+  "definition_cases": 28,
+  "sensitivity_cases": 56,
+  "training_label_time_checked": true,
+  "icir_12_realized_periods_checked": true,
+  "research_source_hashes": {
+    "code2_research.py": "ad7bc68e50fe8f4d5b4af4446dac34853b14d8d082ac4f242d176894df02f9b9",
+    "code2_new.py": "2735937400bc711d22fd3ae190b7c9b1f90393a3b4579ad4b8e7b20eb8c95fc2",
+    "code2_xgboost.py": "5b1dcaf3e8152af241eae0e2e46b6154fa3cc4dffd075167e309cfd1730c936a",
+    "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1"
+  },
+  "original_code2_unchanged": true
+}

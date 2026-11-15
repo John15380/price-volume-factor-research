@@ -25,6 +25,34 @@ class PaperConstructionTests(unittest.TestCase):
         self.assertAlmostEqual(result[-1,0],amp[-5:].mean()-amp[:5].mean())
         self.assertNotAlmostEqual(result[-1,0],amp.mean())
 
+    def test_ideal_amplitude_selects_valid_days_instead_of_requiring_twenty(self):
+        price=np.arange(1.,21.);amp=np.arange(20.)/100
+        amp[8]=np.nan
+        result=r.conditional_factors(price,amp,np.ones(20)*.01,np.ones(20))
+        self.assertAlmostEqual(result[-1,0],amp[-4:].mean()-amp[:4].mean())
+
+    def test_ideal_amplitude_requires_ten_effective_days(self):
+        price=np.arange(1.,21.);amp=np.arange(20.)/100
+        valid=np.arange(20)<10
+        result=r.conditional_factors(price,amp,np.ones(20)*.01,np.ones(20),valid)
+        self.assertAlmostEqual(result[-1,0],amp[8:10].mean()-amp[:2].mean())
+        valid[9]=False
+        result=r.conditional_factors(price,amp,np.ones(20)*.01,np.ones(20),valid)
+        self.assertTrue(np.isnan(result[-1,0]))
+
+    def test_ideal_effective_days_exclude_halts_and_one_price_limits(self):
+        q=pd.DataFrame({'HighPrice':[11.,9.,10.,11.,11.], 'LowPrice':[11.,9.,10.,10.,10.],
+            'ClosePrice':[11.,9.,10.,10.5,10.5], 'up_limit':[11.]*5,'down_limit':[9.]*5,
+            'Volume':[100.]*5,'PTFlag':[0]*5,'SuspendAny':[False,False,False,False,True]})
+        self.assertEqual(r.ideal_valid_days(q).tolist(),[False,False,True,True,False])
+
+    def test_ideal_effective_mask_does_not_change_long_momentum_definition(self):
+        price=np.ones(160);amp=np.arange(160.)/100;ret=np.arange(160.)/10000
+        a=r.conditional_factors(price,amp,ret,np.ones(160))
+        b=r.conditional_factors(price,amp,ret,np.ones(160),np.zeros(160,dtype=bool))
+        self.assertAlmostEqual(a[-1,2],b[-1,2])
+        self.assertTrue(np.isnan(b[-1,0]))
+
     def test_ideal_reversal_conditions_on_average_trade_amount(self):
         price=np.ones(20)
         ret=np.arange(20.)/1000

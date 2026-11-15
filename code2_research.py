@@ -95,15 +95,23 @@ def day_metrics(open_, close, high, low, volume, amount, trades, scale):
 
 
 @njit(cache=True)
-def conditional_factors(prices, amplitude, returns, avg_trade):
+def conditional_factors(prices, amplitude, returns, avg_trade, ideal_valid=None):
     n = len(prices)
     out = np.full((n, 3), np.nan)
     for t in range(19, n):
         a, p = amplitude[t-19:t+1], prices[t-19:t+1]
         r, v = returns[t-19:t+1], avg_trade[t-19:t+1]
-        if np.isfinite(a).all() and np.isfinite(p).all():
-            order = np.argsort(p)
-            out[t, 0] = np.mean(a[order[-5:]]) - np.mean(a[order[:5]])
+        valid = np.isfinite(a) & np.isfinite(p) & (p > 0) & (a >= 0)
+        if ideal_valid is not None:
+            valid &= ideal_valid[t-19:t+1]
+        # 开源20200516 p.5：剔除停牌和一字涨跌停，有效日不足10日才置空。
+        # 开源20210924 p.8：高/低价各取25%。非整数日数向下取整，原文未指定舍入。
+        count = valid.sum()
+        if count >= 10:
+            valid_a, valid_p = a[valid], p[valid]
+            order = np.argsort(valid_p)
+            k = count // 4
+            out[t, 0] = np.mean(valid_a[order[-k:]]) - np.mean(valid_a[order[:k]])
         if np.isfinite(r).all() and np.isfinite(v).all():
             order = np.argsort(v)
             out[t, 1] = np.sum(r[order[-10:]]) - np.sum(r[order[:10]])
@@ -113,6 +121,18 @@ def conditional_factors(prices, amplitude, returns, avg_trade):
                 order = np.argsort(a160)
                 out[t, 2] = np.sum(r160[order[:112]])
     return out
+
+
+def ideal_valid_days(quotes):
+    """信号形成前可知的有效日，独立于次日订单能否成交。"""
+    high, low, close = quotes.HighPrice, quotes.LowPrice, quotes.ClosePrice
+    upper, lower = quotes.up_limit, quotes.down_limit
+    same_price = (high-low).abs().le(1e-6)
+    one_price_limit = same_price & ((close-upper).abs().le(1e-6) | (close-lower).abs().le(1e-6))
+    valid = (np.isfinite(high) & np.isfinite(low) & np.isfinite(close)
+             & low.gt(0) & high.ge(low) & close.gt(0) & quotes.Volume.gt(0)
+             & quotes.PTFlag.eq(0) & ~quotes.SuspendAny & ~one_price_limit)
+    return valid
 
 
 def load_data(cfg, universe_name):
@@ -214,7 +234,9 @@ def calculate_factors(cfg, calendar, symbols, daily):
     raw = pd.concat(parts,ignore_index=True)
     raw.to_parquet(Path(cfg.output_dir)/"daily_research_metrics.parquet",index=False)
     rolled = []
-    daily_index = daily.set_index(["SecuCode","TradingDay"])[["AdjClose","DailyAmplitude","DailyReturn"]].sort_index()
+    daily_index = daily.set_index(["SecuCode","TradingDay"])[[
+        "AdjClose","DailyAmplitude","DailyReturn","HighPrice","LowPrice","ClosePrice",
+        "up_limit","down_limit","Volume","PTFlag","SuspendAny"]].sort_index()
     for symbol, frame in tqdm(raw.groupby("SecuCode"),desc="研报时间窗口"):
         grid = frame.set_index("TradingDay").reindex(calendar)
         rolling = grid[list(DAY_FIELDS)].rolling(20,min_periods=20).mean()
@@ -225,7 +247,8 @@ def calculate_factors(cfg, calendar, symbols, daily):
         rolling["SmartDaily"] = grid.SmartDaily.rolling(10,min_periods=10).mean()
         quotes = daily_index.loc[symbol].reindex(calendar)
         selected = conditional_factors(quotes.AdjClose.to_numpy(float),quotes.DailyAmplitude.to_numpy(float),
-                                      quotes.DailyReturn.to_numpy(float),grid.AvgTrade.to_numpy(float))
+                                      quotes.DailyReturn.to_numpy(float),grid.AvgTrade.to_numpy(float),
+                                      ideal_valid_days(quotes).to_numpy(bool))
         rolling["IdealAmp"],rolling["IdealRev"],rolling["LowAmpMom"] = selected[:,0],selected[:,1],selected[:,2]
         rolling["SecuCode"] = symbol
         rolling.index.name = "TradingDay"
@@ -470,6 +493,8 @@ def run_research(cfg,universe_name="500",with_xgboost=True,predict_start="2017-0
         pd.DataFrame(comparison).to_csv(output/"comparison/summary.csv",index=False)
     manifest={"universe":universe_name,"candidates":len(symbols),"start":str(dates[0].date()),"end":str(dates[-1].date()),
               "primary_factors":PRIMARY,"ls_leg_weight":cfg.ls_leg_weight,"one_way_fee":cfg.one_way_fee,
+              "ideal_amplitude":"20 calendar trading days; exclude suspension and one-price upper/lower-limit days; >=10 valid days; floor(valid_days*0.25) at each price tail; source 20200516 p.5 and 20210924 p.8",
+              "legacy_additional_not_defined_in_supplied_reports":["HF_Skewness","HF_Tail_Reversal"],
               "execution":"09:30 suspension timing and actual raw up/down price bounds; equality blocked in that direction; ST prohibits increases, allows reductions",
               "calendar_month":"last observed trading day each calendar month; IC exit next scheduled entry",
               "unavailable":"exact listing dates (first positive quote used); Barra 10 styles; L2 order-side/size fields; borrowing supply and opening queue priority",

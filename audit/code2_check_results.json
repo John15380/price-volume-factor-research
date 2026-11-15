@@ -1,0 +1,73 @@
+{
+  "source_sha256": "44917d60c172d1e2958318b1b92174e422d7f220f1f8f2b769a9a296e93e17ec",
+  "holding_horizons": {
+    "Weekly": {
+      "days": 5,
+      "return": 0.04950495049504955
+    },
+    "BiWeekly": {
+      "days": 10,
+      "return": 0.0990099009900991
+    },
+    "Monthly": {
+      "days": 20,
+      "return": 0.19801980198019797
+    }
+  },
+  "plot_statistics_disagreement": {
+    "change": "only non-rebalance signal forward returns changed",
+    "all_reported_metrics_unchanged": true,
+    "plot_final_nav_before": 1.038042329469716,
+    "plot_final_nav_after": 2.1560962841784357,
+    "period_ledger_final_nav": 1.061208
+  },
+  "initial_drawdown_omitted": {
+    "reported_max_drawdown": 0.0,
+    "correct_endpoint_drawdown_including_initial_capital": -0.09999999999999998
+  },
+  "future_missing_return_changes_signal_portfolio": {
+    "signal_day_factors_identical": true,
+    "long_before": [
+      "000000",
+      "000001",
+      "000002",
+      "000003"
+    ],
+    "long_after_only_future_return_becomes_missing": [
+      "000001",
+      "000002",
+      "000003",
+      "000004"
+    ],
+    "zero_exit_open_removes_signal_day_return": true
+  },
+  "future_turnover_changes_past_cost": {
+    "change": "only final rebalance factor rankings reversed",
+    "first_period_gross_before": 0.02,
+    "first_period_gross_after": 0.02,
+    "first_period_net_before": 0.02,
+    "first_period_net_after": 0.017,
+    "unchanged_constituents_initial_transaction_cost": 0.0
+  },
+  "annualization_definitions": {
+    "period_returns": [
+      -0.1,
+      0.1,
+      0.02
+    ],
+    "reported_annual_return": 0.3940694558218152,
+    "geometric_annual_return_same_250_day_convention": 0.17649324870473948,
+    "reported_return_volatility_ratio": 0.5536197916506469,
+    "arithmetic_sharpe_zero_risk_free": 0.46829290579084704
+  },
+  "unadjusted_real_prices": {
+    "symbol": "603528",
+    "event_date": "2017-06-07",
+    "prior_actual_close": 41.44,
+    "ex_rights_reference_previous_close": 13.65,
+    "close": 15.02,
+    "raw_close_return": -0.6375482625482625,
+    "provided_daily_return": 0.100366,
+    "original_function_weekly_return_signal_2017_06_05": -0.6437054631828979
+  }
+}

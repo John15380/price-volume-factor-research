@@ -1,0 +1,20 @@
+{
+  "pages": 17,
+  "rendered_pages": 17,
+  "all_pages_visually_reviewed": true,
+  "full_page_checks": [
+    3,
+    8,
+    13,
+    17
+  ],
+  "overfull_boxes": 0,
+  "missing_glyphs": 0,
+  "embedded_sources_checked": 4,
+  "source_hashes_match_run": true,
+  "tests_passed": 58,
+  "accounting_series_verified": 588,
+  "trades_verified": 12157512,
+  "original_code2_unchanged": true,
+  "pdf_sha256": "43f1dd740fb67f88814bcbec5a95c5ee93da99f0d77504662bf88a240f3d4a0d"
+}

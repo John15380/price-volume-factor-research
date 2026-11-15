@@ -1,0 +1,67 @@
+test_blocked_exit_keeps_position_and_retries (test_code2_new.CorrectedPipelineTests.test_blocked_exit_keeps_position_and_retries) ... ok
+test_drawdown_includes_initial_capital_and_daily_path (test_code2_new.CorrectedPipelineTests.test_drawdown_includes_initial_capital_and_daily_path) ... ok
+test_ex_rights_continuous_prices_and_no_future_feedback (test_code2_new.CorrectedPipelineTests.test_ex_rights_continuous_prices_and_no_future_feedback) ... ok
+test_execution_does_not_use_full_day_volume (test_code2_new.CorrectedPipelineTests.test_execution_does_not_use_full_day_volume) ... ok
+test_final_blocked_positions_remain_reported (test_code2_new.CorrectedPipelineTests.test_final_blocked_positions_remain_reported) ... ok
+test_fixed_schedule_and_low_value_long_direction (test_code2_new.CorrectedPipelineTests.test_fixed_schedule_and_low_value_long_direction) ... ok
+test_future_missing_price_changes_ic_coverage_not_signal_groups (test_code2_new.CorrectedPipelineTests.test_future_missing_price_changes_ic_coverage_not_signal_groups) ... ok
+test_future_rank_changes_cannot_change_past_fees_or_nav (test_code2_new.CorrectedPipelineTests.test_future_rank_changes_cannot_change_past_fees_or_nav) ... ok
+test_geometric_annual_return_and_arithmetic_sharpe (test_code2_new.CorrectedPipelineTests.test_geometric_annual_return_and_arithmetic_sharpe) ... ok
+test_ic_uses_matching_n_day_open_horizon (test_code2_new.CorrectedPipelineTests.test_ic_uses_matching_n_day_open_horizon) ... ok
+test_initial_and_actual_turnover_costs (test_code2_new.CorrectedPipelineTests.test_initial_and_actual_turnover_costs) ... ok
+test_intraday_smart_money_uses_real_amount (test_code2_new.CorrectedPipelineTests.test_intraday_smart_money_uses_real_amount) ... ok
+test_ledger_cash_positions_and_trades_reconcile (test_code2_new.CorrectedPipelineTests.test_ledger_cash_positions_and_trades_reconcile) ... ok
+test_non_rebalance_signals_do_not_change_nav (test_code2_new.CorrectedPipelineTests.test_non_rebalance_signals_do_not_change_nav) ... ok
+test_rejected_buy_keeps_cash_without_reranking (test_code2_new.CorrectedPipelineTests.test_rejected_buy_keeps_cash_without_reranking) ... ok
+test_rolling_missing_day_does_not_compress_window (test_code2_new.CorrectedPipelineTests.test_rolling_missing_day_does_not_compress_window) ... ok
+test_style_windows_use_complete_history (test_code2_new.CorrectedPipelineTests.test_style_windows_use_complete_history) ... ok
+test_suspension_keeps_value_and_does_not_become_minus_100_percent (test_code2_new.CorrectedPipelineTests.test_suspension_keeps_value_and_does_not_become_minus_100_percent) ... ok
+test_unexplained_interior_gap_requires_data_repair (test_code2_new.CorrectedPipelineTests.test_unexplained_interior_gap_requires_data_repair) ... ok
+test_unknown_quote_is_marked_stale (test_code2_new.CorrectedPipelineTests.test_unknown_quote_is_marked_stale) ... ok
+test_calendar_month_uses_true_variable_holding_length (test_code2_research.PaperConstructionTests.test_calendar_month_uses_true_variable_holding_length) ... ok
+test_cdpdp_standardizes_subfactors_before_combining (test_code2_research.PaperConstructionTests.test_cdpdp_standardizes_subfactors_before_combining) ... 研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 72.43it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 89.66it/s]
+ok
+test_cpv_final_factor_contains_variation_and_trend (test_code2_research.PaperConstructionTests.test_cpv_final_factor_contains_variation_and_trend) ... 研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 93.66it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 91.07it/s]
+ok
+test_future_prices_cannot_change_first_icir_prediction (test_code2_research.PaperConstructionTests.test_future_prices_cannot_change_first_icir_prediction) ... ok
+test_icir_weight_window_uses_only_realized_twelve_periods (test_code2_research.PaperConstructionTests.test_icir_weight_window_uses_only_realized_twelve_periods) ... ok
+test_ideal_amplitude_conditions_on_price_rank (test_code2_research.PaperConstructionTests.test_ideal_amplitude_conditions_on_price_rank) ... ok
+test_ideal_amplitude_requires_ten_effective_days (test_code2_research.PaperConstructionTests.test_ideal_amplitude_requires_ten_effective_days) ... ok
+test_ideal_amplitude_selects_valid_days_instead_of_requiring_twenty (test_code2_research.PaperConstructionTests.test_ideal_amplitude_selects_valid_days_instead_of_requiring_twenty) ... ok
+test_ideal_effective_days_exclude_halts_and_one_price_limits (test_code2_research.PaperConstructionTests.test_ideal_effective_days_exclude_halts_and_one_price_limits) ... ok
+test_ideal_effective_mask_does_not_change_long_momentum_definition (test_code2_research.PaperConstructionTests.test_ideal_effective_mask_does_not_change_long_momentum_definition) ... ok
+test_ideal_reversal_conditions_on_average_trade_amount (test_code2_research.PaperConstructionTests.test_ideal_reversal_conditions_on_average_trade_amount) ... ok
+test_leverage_convention_is_explicit (test_code2_research.PaperConstructionTests.test_leverage_convention_is_explicit) ... ok
+test_long_and_short_both_pay_actual_fees (test_code2_research.PaperConstructionTests.test_long_and_short_both_pay_actual_fees) ... ok
+test_long_momentum_selects_low_amplitude_seventy_percent (test_code2_research.PaperConstructionTests.test_long_momentum_selects_low_amplitude_seventy_percent) ... ok
+test_smart_money_is_pooled_not_daily_average (test_code2_research.PaperConstructionTests.test_smart_money_is_pooled_not_daily_average) ... ok
+test_zero_variance_correlation_neutral_not_entire_stock_missing (test_code2_research.PaperConstructionTests.test_zero_variance_correlation_neutral_not_entire_stock_missing) ... ok
+test_actual_lower_limit_blocks_sells_allows_buys (test_code2_trading_data.HistoricalTradingDataTests.test_actual_lower_limit_blocks_sells_allows_buys) ... ok
+test_actual_upper_limit_blocks_buys_allows_sells (test_code2_trading_data.HistoricalTradingDataTests.test_actual_upper_limit_blocks_buys_allows_sells) ... ok
+test_afternoon_halt_does_not_block_morning_trade (test_code2_trading_data.HistoricalTradingDataTests.test_afternoon_halt_does_not_block_morning_trade) ... ok
+test_code_changes_have_one_continuous_security_identity (test_code2_trading_data.HistoricalTradingDataTests.test_code_changes_have_one_continuous_security_identity) ... ok
+test_conflicting_open_and_limit_bounds_block_orders_not_signal (test_code2_trading_data.HistoricalTradingDataTests.test_conflicting_open_and_limit_bounds_block_orders_not_signal) ... ok
+test_duplicate_alias_values_cannot_silently_conflict (test_code2_trading_data.HistoricalTradingDataTests.test_duplicate_alias_values_cannot_silently_conflict) ... ok
+test_future_st_or_limits_do_not_remove_current_signal (test_code2_trading_data.HistoricalTradingDataTests.test_future_st_or_limits_do_not_remove_current_signal) ... ok
+test_intraday_suspend_timing_is_evaluated_at_open (test_code2_trading_data.HistoricalTradingDataTests.test_intraday_suspend_timing_is_evaluated_at_open) ... ok
+test_missing_official_factor_fails_instead_of_dropping_stock (test_code2_trading_data.HistoricalTradingDataTests.test_missing_official_factor_fails_instead_of_dropping_stock) ... ok
+test_new_st_at_execution_keeps_cash_without_reranking (test_code2_trading_data.HistoricalTradingDataTests.test_new_st_at_execution_keeps_cash_without_reranking) ... ok
+test_official_adjustment_and_future_invariance (test_code2_trading_data.HistoricalTradingDataTests.test_official_adjustment_and_future_invariance) ... ok
+test_open_halt_does_not_use_later_opening_price (test_code2_trading_data.HistoricalTradingDataTests.test_open_halt_does_not_use_later_opening_price) ... ok
+test_st_excluded_from_signal_and_new_risk_not_exits (test_code2_trading_data.HistoricalTradingDataTests.test_st_excluded_from_signal_and_new_risk_not_exits) ... ok
+test_st_long_reduction_is_not_blocked_by_admission_rule (test_code2_trading_data.HistoricalTradingDataTests.test_st_long_reduction_is_not_blocked_by_admission_rule) ... ok
+test_st_short_cover_is_not_blocked_by_admission_rule (test_code2_trading_data.HistoricalTradingDataTests.test_st_short_cover_is_not_blocked_by_admission_rule) ... ok
+test_unknown_limit_does_not_assume_unlimited_trading (test_code2_trading_data.HistoricalTradingDataTests.test_unknown_limit_does_not_assume_unlimited_trading) ... ok
+test_future_prices_do_not_change_available_training_labels (test_code2_xgboost.ModelTimingTests.test_future_prices_do_not_change_available_training_labels) ... ok
+test_label_horizons_and_centering (test_code2_xgboost.ModelTimingTests.test_label_horizons_and_centering) ... ok
+test_missing_future_price_preserves_prediction_input_rows (test_code2_xgboost.ModelTimingTests.test_missing_future_price_preserves_prediction_input_rows) ... ok
+test_prediction_score_direction_is_high_value_long (test_code2_xgboost.ModelTimingTests.test_prediction_score_direction_is_high_value_long) ... ok
+test_purge_uses_realization_date (test_code2_xgboost.ModelTimingTests.test_purge_uses_realization_date) ... ok
+test_window_excludes_old_signal_dates (test_code2_xgboost.ModelTimingTests.test_window_excludes_old_signal_dates) ... ok
+
+----------------------------------------------------------------------
+Ran 58 tests in 4.999s
+
+OK
