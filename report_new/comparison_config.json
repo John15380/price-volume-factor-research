@@ -1,0 +1,10 @@
+{
+  "prediction_start_requested": "2017-02-01",
+  "signal_start": "2017-02-03",
+  "return_start": "2017-02-06",
+  "end": "2018-12-28",
+  "comparison_rows": 101815,
+  "input_sample": "six finite contemporaneous factor values; same for all cases",
+  "base_source_sha256": "5987ff6b00501dbaa40756cdac53eaa6df6e1afb7682a793d731dcaff3e8da6a",
+  "xgboost_source_sha256": "501918c80c856a3420d47f64e546937a8d7591863dec36ff5463c6480378f8bf"
+}
