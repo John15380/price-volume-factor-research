@@ -51,11 +51,12 @@ def training_sample(labeled, cutoff, window_months=12):
     return labeled.loc[mask].copy()
 
 
-def walk_forward(features, market, days, output, predict_start="2017-02-01", window_months=12):
+def walk_forward(features, market, days, output, predict_start="2017-02-01", window_months=12, feature_cols=None):
     from xgboost import XGBRegressor
     import xgboost
 
-    features = features.dropna(subset=list(base.FACTORS)).copy()
+    feature_cols = list(base.FACTORS) if feature_cols is None else list(feature_cols)
+    features = features.dropna(subset=feature_cols).copy()
     labels = make_labels(features, market, days)
     labeled = features.merge(labels, on=base.KEYS, validate="one_to_one")
     months = sorted(pd.DatetimeIndex(market.dates[market.dates >= pd.Timestamp(predict_start)]).to_period("M").unique())
@@ -81,9 +82,9 @@ def walk_forward(features, market, days, output, predict_start="2017-02-01", win
         weights = 1 / counts.to_numpy(float)
         weights /= weights.mean()
         model = XGBRegressor(**parameters)
-        model.fit(train[list(base.FACTORS)], train.Target, sample_weight=weights)
+        model.fit(train[feature_cols], train.Target, sample_weight=weights)
         pred = test[base.KEYS].copy()
-        pred["Pred_Score"] = model.predict(test[list(base.FACTORS)])
+        pred["Pred_Score"] = model.predict(test[feature_cols])
         forecasts.append(pred)
         model.save_model(output / "models" / f"{month}.json")
         logs.append({"PredictionMonth": str(month), "Cutoff": cutoff,
@@ -91,7 +92,7 @@ def walk_forward(features, market, days, output, predict_start="2017-02-01", win
                      "MaxLabelEnd": train.LabelEnd.max(), "TrainDays": train.TradingDay.nunique(),
                      "TrainRows": len(train), "PredictionRows": len(test), "Horizon": days})
         importance.extend({"PredictionMonth": str(month), "Feature": factor, "Importance": float(value)}
-                          for factor, value in zip(base.FACTORS, model.feature_importances_))
+                          for factor, value in zip(feature_cols, model.feature_importances_))
         LOG.info("XGBoost %s / %d日：训练 %d 行，标签最晚 %s，预测 %d 行", month, days,
                  len(train), train.LabelEnd.max().date(), len(test))
     if not forecasts:
@@ -102,7 +103,7 @@ def walk_forward(features, market, days, output, predict_start="2017-02-01", win
     pd.DataFrame(importance).to_csv(output / "feature_importance.csv", index=False)
     (output / "model_config.json").write_text(json.dumps({"parameters": parameters,
         "xgboost_version": xgboost.__version__, "horizon": days, "window_months": window_months,
-        "predict_start": predict_start, "features": list(base.FACTORS),
+        "predict_start": predict_start, "features": feature_cols,
         "target": "cross-section demeaned adjusted open-to-open N-day return",
         "purge": "LabelEnd < first trading day of prediction month"}, ensure_ascii=False, indent=2))
     return predictions

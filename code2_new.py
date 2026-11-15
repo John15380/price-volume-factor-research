@@ -1,16 +1,20 @@
-"""六个高频因子的研究和逐日持仓回测，保留原 code2.py 不变。
+"""默认按本地研报构造量价因子并逐日回测，保留原 code2.py 不变。
 
 运行：python code2_new.py --help
+完整研究与模型：python code2_new.py --with-xgboost
+第一版简化因子：python code2_new.py --legacy-factors --ls-leg-weight 0.5
 验证：python -m unittest discover -s tests -p 'test_code2_new.py'
 
-口径：T 收盘后信号，T+1 开盘执行，每 5/10/20 个交易日调仓。
-用当日除权参考昨收重建向前连续价格；持仓数量使用该连续价格的单位。
+口径：T 收盘后信号，T+1 开盘执行，支持固定 5/10/20 日及自然月末调仓。
+默认研报流程接入官方复权因子、ST、停复牌时段及实际涨跌停价，
+用当时可知的复权因子构造连续价格；持仓数量使用该连续价格的单位。
 研究采用可分割份额，不模拟整手、冲击成本、现金分红到账时点或税费明细。
-日行情没有精确涨跌停价，默认以相对参考昨收的 4.9% 开盘跳空作为保守
-方向性成交过滤（可配置），并非精确涨跌停撮合。无法买入的资金留现金，
+按09:30停牌状态及实际限价做方向性成交过滤。无法买入的资金留现金，
 无法减仓的头寸保留并逐日重试。未知行情按最近估值保留，并明确报告。
-多空组合为理论诊断：调仓时多空目标各 50% 净资产，假定可借券；年借券
-费率可配置。它与五个多头组均有各自的持仓、现金及实际成交费用账本。
+仅 --legacy-factors 旧版对照保留参考昨收复权及4.9%开盘跳空近似过滤。
+多空组合为理论诊断：每腿目标由ls_leg_weight指定，默认各100%净资产，
+设0.5可作各50%的对照。假定可借券及相应保证金融资；借券费率可配置。
+它与五个多头组均有各自的持仓、现金及实际成交费用账本。
 """
 
 from __future__ import annotations
@@ -46,7 +50,7 @@ KEYS = ["TradingDay", "SecuCode"]
 @dataclass
 class Config:
     data_dir: Path = BASE / "data"
-    output_dir: Path = BASE / "results_code2_new"
+    output_dir: Path = BASE / "results_code2_constraints"
     start: str = "2016-01-04"
     end: str = "2018-12-31"
     index: str = "500"
@@ -59,6 +63,7 @@ class Config:
     annual_borrow_fee: float = 0.0
     annual_risk_free: float = 0.0
     min_cross_section: int = 20
+    ls_leg_weight: float = 1.0
 
 
 def normalize_codes(values):
@@ -366,6 +371,7 @@ class Market:
     buy: np.ndarray
     sell: np.ndarray
     stale: np.ndarray
+    increase: np.ndarray | None = None
 
     @classmethod
     def from_daily(cls, daily, dates):
@@ -376,7 +382,8 @@ class Market:
 
         return cls(pd.DatetimeIndex(dates), symbols, matrix("AdjOpen").to_numpy(float),
                    matrix("AdjClose").to_numpy(float), matrix("CanBuy").fillna(False).to_numpy(bool),
-                   matrix("CanSell").fillna(False).to_numpy(bool), matrix("StaleQuote").fillna(True).to_numpy(bool))
+                   matrix("CanSell").fillna(False).to_numpy(bool), matrix("StaleQuote").fillna(True).to_numpy(bool),
+                   matrix("CanIncrease").fillna(False).to_numpy(bool) if "CanIncrease" in daily else None)
 
 
 def signal_groups(features, factor, calendar, period_days, min_stocks=20, low_is_long=True):
@@ -452,13 +459,14 @@ class Portfolio:
                                 "Notional": notional, "Cost": cost})
         return notionals.sum(), costs.sum()
 
-    def execute(self, prices, can_buy, can_sell, day, weights=None):
+    def execute(self, prices, can_buy, can_sell, day, weights=None, can_increase=None):
         equity = self.value(prices)
+        gross_limit = 2 * self.cfg.ls_leg_weight if self.name == "TheoreticalLS" else 1.0
         if equity <= 0:
             raise ValueError(f"{day} {self.name} 净资产非正，停止回测。")
         if weights is not None:
-            if np.sum(np.abs(weights)) > 1 + 1e-10:
-                raise ValueError("目标总敞口不能超过净资产。")
+            if np.sum(np.abs(weights)) > gross_limit + 1e-10:
+                raise ValueError("目标总敞口超过当前组合约定上限。")
             target = np.divide(weights * equity, prices, out=np.zeros_like(weights),
                                where=np.isfinite(prices) & (prices > 0))
             # 新调仓指令覆盖旧指令；目标没有行情的新买单不转移给其他股票。
@@ -477,19 +485,22 @@ class Portfolio:
         notional, cost = self.trade(done, prices, day)
         self.pending[reduction & permitted] = np.nan
         blocked = int(blocked_reductions.sum())
+        admission_blocked = 0
         if weights is not None:
             # 先释放旧风险，再按剩余净资产/现金预算开新仓。未卖出的旧仓占用预算。
             add = target - self.units
             same_sign = (self.units == 0) | (self.units * add > 0)
             add[~same_sign] = 0
-            allowed = np.where(add > 0, can_buy, can_sell)
+            admission = np.ones(len(add),dtype=bool) if can_increase is None else can_increase
+            admission_blocked = int(((np.abs(add)>1e-14)&~admission).sum())
+            allowed = np.where(add > 0, can_buy, can_sell) & admission
             blocked += int(((np.abs(add) > 1e-14) & ~allowed).sum())
             add[~allowed] = 0
             valid_prices = np.nan_to_num(prices, nan=0.0)
             gross = np.sum(np.abs(self.units * valid_prices))
             additional = np.sum(np.abs(add * valid_prices))
-            room = max(self.value(prices) - gross, 0.0)
-            scale = min(1.0, room / (additional * (1 + self.cfg.one_way_fee))) if additional > 0 else 0.0
+            room = max(self.value(prices) * gross_limit - gross, 0.0)
+            scale = min(1.0, room / (additional * (1 + gross_limit * self.cfg.one_way_fee))) if additional > 0 else 0.0
             # 卖空所得可融资；此现金约束主要约束多头组。按全部增加单统一缩放。
             cash_needed = np.sum(add * valid_prices) + additional * self.cfg.one_way_fee
             if cash_needed > 0:
@@ -497,7 +508,8 @@ class Portfolio:
             n, c = self.trade(add * scale, prices, day)
             notional, cost = notional + n, cost + c
         return {"TradedNotional": notional, "TradingCost": cost,
-                "Turnover": notional / equity, "BlockedOrders": blocked}
+                "Turnover": notional / equity, "BlockedOrders": blocked,
+                "AdmissionBlockedOrders": admission_blocked}
 
 
 def backtest(groups, schedule, market, cfg):
@@ -529,7 +541,7 @@ def backtest(groups, schedule, market, cfg):
                         raise ValueError("信号股票不在行情矩阵中。")
                     if len(columns):
                         new_weights[group - 1, columns] = 1 / len(columns)
-                new_weights[5] = 0.5 * (new_weights[4] - new_weights[0])
+                new_weights[5] = cfg.ls_leg_weight * (new_weights[4] - new_weights[0])
         if t == len(dates) - 1:
             new_weights = np.zeros((6, n))  # 样本末日开盘尝试平仓；受阻的仓位保留。
         for b, book in enumerate(books):
@@ -537,7 +549,8 @@ def backtest(groups, schedule, market, cfg):
             borrow *= cfg.annual_borrow_fee / cfg.annual_days
             book.cash -= borrow
             stats = book.execute(opening, market.buy[t], market.sell[t], day,
-                                 None if new_weights is None else new_weights[b])
+                                 None if new_weights is None else new_weights[b],
+                                 None if market.increase is None else market.increase[t])
             nav = book.value(closing)
             if nav <= 0:
                 raise ValueError(f"{day} {book.name} 日末净资产非正。")
@@ -623,7 +636,7 @@ def plot_result(ledger, destination, title, cfg, baseline_date):
         axis.legend()
         axis.grid(alpha=0.3)
     axes[0].set_title(title + " | long-only groups")
-    axes[1].set_title("Theoretical L/S: 50% long / 50% short at rebalance")
+    axes[1].set_title(f"Theoretical L/S: {cfg.ls_leg_weight:.0%} long / {cfg.ls_leg_weight:.0%} short targets")
     fig.tight_layout()
     fig.savefig(destination, dpi=160)
     plt.close(fig)
@@ -726,7 +739,7 @@ def run_pipeline(cfg, selected_factors=FACTORS, selected_periods=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data-dir", type=Path, default=BASE / "data")
-    parser.add_argument("--output-dir", type=Path, default=BASE / "results_code2_new")
+    parser.add_argument("--output-dir", type=Path, default=BASE / "results_code2_constraints")
     parser.add_argument("--start", default="2016-01-04")
     parser.add_argument("--end", default="2018-12-31")
     parser.add_argument("--index", choices=["300", "500"], default="500")
@@ -739,13 +752,21 @@ def main():
     parser.add_argument("--with-xgboost", action="store_true", help="增加按月滚动XGBoost及共同样本比较")
     parser.add_argument("--model-only", action="store_true", help="复用本输出目录的预处理因子，仅训练模型及共同样本回测")
     parser.add_argument("--predict-start", default="2017-02-01", help="XGBoost样本外预测起点")
+    parser.add_argument("--research", action="store_true", default=True, help="采用研报核对后的因子和回测（默认）")
+    parser.add_argument("--legacy-factors", dest="research", action="store_false", help="运行第一版简化因子，仅用于旧结果对照")
+    parser.add_argument("--ls-leg-weight", type=float, default=1.0, help="每腿多空名义目标，研报研究默认1；0.5为总敞口100%对照")
+    parser.add_argument("--universe", choices=["500", "all"], default="500", help="研报模式的股票池")
     args = parser.parse_args()
     factors = args.factor or list(FACTORS)
     periods = {name: PERIODS[name] for name in args.period} if args.period else PERIODS
     config_args = {key: value for key, value in vars(args).items()
-                   if key not in ("factor", "period", "with_xgboost", "model_only", "predict_start")}
+                   if key not in ("factor", "period", "with_xgboost", "model_only", "predict_start", "research", "universe")}
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     cfg = Config(**config_args)
+    if args.research:
+        from code2_research import run_research
+        run_research(cfg, args.universe, args.with_xgboost or args.model_only, args.predict_start, args.model_only)
+        return
     if not args.model_only:
         run_pipeline(cfg, factors, periods)
     if args.with_xgboost or args.model_only:

@@ -1,0 +1,15 @@
+{
+  "pages": 14,
+  "rendered_pages": 14,
+  "all_pages_visually_reviewed": true,
+  "dense_tables_reviewed_at_full_size": [
+    7,
+    8
+  ],
+  "overfull_boxes": 0,
+  "missing_glyphs": 0,
+  "embedded_sources_checked": 4,
+  "source_hashes_match_run": true,
+  "original_code2_unchanged": true,
+  "pdf_sha256": "e3258d0bf91d8000689a41ce364e2756fcf9d620121e04cf8d743fd1464d796e"
+}
