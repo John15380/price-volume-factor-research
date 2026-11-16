@@ -1,5 +1,5 @@
 {
-  "origin": "fresh raw-minute calculation with current factor definitions",
+  "origin": "verified column projection: remove CDPP; remaining factor mathematics unchanged",
   "universe": "300",
   "factors": [
     "HF_SmartMoney",
@@ -7,15 +7,14 @@
     "HF_CDPDP",
     "HF_IdealAmplitude",
     "HF_IdealReversal",
-    "HF_CDPP",
     "HF_CDPDP4",
     "HF_LowAmpMomentum",
     "HF_Skewness"
   ],
-  "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
+  "factor_signature": "68eddb10e34e9b7bfdf940f87023a9e0eb54108e32ebf52e566fb90cc93e81a6",
   "trading_input_signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588",
   "files": {
-    "features.parquet": "5c6d7a63900f5bf16c5ab349dddf6d12aa96f1324b879005b6495fc63aa1ff59",
+    "features.parquet": "2458af06531d9e3e8f6b89f088324d9bcad6ab4c1483c7d12a70c66aaadb1514",
     "daily_market.parquet": "e3d1b42da155b2f4c9b1358b792d072e598ba20fa974daf97b580235c78e4124"
   }
 }

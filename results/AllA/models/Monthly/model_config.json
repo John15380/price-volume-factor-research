@@ -1,5 +1,5 @@
 {
-  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "horizon": 20,
   "training_start": "2016-01-01",
   "training_end": "2017-12-31",
@@ -12,12 +12,12 @@
   "test_start": "2018-01-02",
   "test_end": "2018-12-28",
   "selected_features": [
-    "HF_CDPP",
     "HF_CPV",
     "HF_Skewness",
     "HF_IdealReversal",
     "HF_CDPDP",
-    "HF_SmartMoney"
+    "HF_SmartMoney",
+    "HF_IdealAmplitude"
   ],
   "parameters": {
     "max_depth": 6,
@@ -31,7 +31,7 @@
     "max_bin": 128,
     "corr_threshold": 0.7,
     "max_features": 6,
-    "n_estimators": 146
+    "n_estimators": 130
   },
   "validation_folds": 3,
   "validation_refits": 3,
@@ -41,7 +41,7 @@
   "parameter_as_of": "2017-12-29",
   "test_refits": 0,
   "test_early_stopping": false,
-  "model_sha256": "4f3ef0455cd01dd1b4bd1bfbebe2473af18241de218fffa0a8c8270701943d63",
+  "model_sha256": "fdd3e7362919479279db9628bea14bf25794dec0d797e18706dfeae4b4b928d1",
   "xgboost_version": "3.2.0",
   "validation_prediction_rows": 501012,
   "test_prediction_rows": 773278

@@ -1,5 +1,5 @@
 {
-  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "horizon": 5,
   "training_start": "2016-01-01",
   "training_end": "2017-12-31",
@@ -12,26 +12,28 @@
   "test_start": "2018-01-02",
   "test_end": "2018-12-28",
   "selected_features": [
-    "HF_CDPP",
     "HF_CPV",
     "HF_Skewness",
     "HF_IdealReversal",
     "HF_SmartMoney",
-    "HF_LowAmpMomentum"
+    "HF_LowAmpMomentum",
+    "HF_IdealAmplitude",
+    "HF_CDPDP",
+    "HF_CDPDP4"
   ],
   "parameters": {
     "max_depth": 3,
-    "learning_rate": 0.05028935629474595,
-    "min_child_weight": 60.0,
-    "subsample": 0.7201582770829773,
-    "colsample_bytree": 0.8492407770619885,
-    "reg_alpha": 1.0688126285248472,
-    "reg_lambda": 2.0897528632562037,
+    "learning_rate": 0.02359407750385957,
+    "min_child_weight": 1.0,
+    "subsample": 0.6401071394684341,
+    "colsample_bytree": 0.6158124852962821,
+    "reg_alpha": 0.07867854446177085,
+    "reg_lambda": 4.175932576662025,
     "gamma": 0.0,
     "max_bin": 128,
     "corr_threshold": 0.9,
-    "max_features": 6,
-    "n_estimators": 47
+    "max_features": 8,
+    "n_estimators": 142
   },
   "validation_folds": 3,
   "validation_refits": 3,
@@ -41,7 +43,7 @@
   "parameter_as_of": "2017-12-29",
   "test_refits": 0,
   "test_early_stopping": false,
-  "model_sha256": "bece5503767ef42075465dd23404600ee6d279c254f6a8feed2dd458cc95cca3",
+  "model_sha256": "59b2dd7a5b55bb3e3968e2c6a9c81d49496587ed62b478d2195a958ad2526c50",
   "xgboost_version": "3.2.0",
   "validation_prediction_rows": 50712,
   "test_prediction_rows": 69325

@@ -10,13 +10,13 @@
     "gamma": 0.00023979170781017443,
     "max_bin": 256,
     "corr_threshold": 0.8,
-    "max_features": 9,
-    "n_estimators": 161
+    "max_features": 8,
+    "n_estimators": 162
   },
   "winner_trial": 5,
-  "inner_mean_rank_ic": 0.13376621291522275,
-  "inner_rank_ic_std": 0.016671865175677328,
-  "selection_score": 0.13209902639765503,
+  "inner_mean_rank_ic": 0.13453054902723272,
+  "inner_rank_ic_std": 0.012855118744467382,
+  "selection_score": 0.133245037152786,
   "candidates": 96,
   "finalists": 16,
   "cv_fits": 144,

@@ -1,5 +1,5 @@
 {
-  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "horizon": 10,
   "training_start": "2016-01-01",
   "training_end": "2017-12-31",
@@ -12,26 +12,26 @@
   "test_start": "2018-01-02",
   "test_end": "2018-12-28",
   "selected_features": [
-    "HF_CDPP",
     "HF_CPV",
     "HF_Skewness",
     "HF_IdealReversal",
     "HF_CDPDP",
-    "HF_SmartMoney"
+    "HF_SmartMoney",
+    "HF_IdealAmplitude"
   ],
   "parameters": {
     "max_depth": 5,
-    "learning_rate": 0.07505430467404592,
-    "min_child_weight": 3.0,
-    "subsample": 0.6225915314525676,
-    "colsample_bytree": 0.5885451437435408,
-    "reg_alpha": 0.013589345408994232,
-    "reg_lambda": 44.76390621844767,
-    "gamma": 0.014065211226966058,
+    "learning_rate": 0.016553318324857107,
+    "min_child_weight": 10.0,
+    "subsample": 0.8822470848937969,
+    "colsample_bytree": 0.5975513413531083,
+    "reg_alpha": 0.0,
+    "reg_lambda": 49.58364254224143,
+    "gamma": 0.0,
     "max_bin": 256,
     "corr_threshold": 0.7,
     "max_features": 6,
-    "n_estimators": 40
+    "n_estimators": 157
   },
   "validation_folds": 3,
   "validation_refits": 3,
@@ -41,7 +41,7 @@
   "parameter_as_of": "2017-12-29",
   "test_refits": 0,
   "test_early_stopping": false,
-  "model_sha256": "c352a2d4e6126dc9cde5e49249cf6726839e24bf5ed919aab69122ba917d8127",
+  "model_sha256": "c96c7cfe1e068c6fbf3065758e8c415a9a302d4230714f02cbe02164e6f52638",
   "xgboost_version": "3.2.0",
   "validation_prediction_rows": 501012,
   "test_prediction_rows": 773278

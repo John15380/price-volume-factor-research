@@ -1,6 +1,6 @@
 {
-  "protocol": "nested_v2_short_opening_price_v3",
-  "model_protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "protocol": "eight_factors_no_cdpp_opening_price_2018_v4",
+  "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "training": [
     "2016-01-01",
     "2017-12-31"
@@ -20,7 +20,6 @@
     "HF_CDPDP",
     "HF_IdealAmplitude",
     "HF_IdealReversal",
-    "HF_CDPP",
     "HF_CDPDP4",
     "HF_LowAmpMomentum",
     "HF_Skewness"
@@ -28,18 +27,21 @@
   "groups": 10,
   "round_trip_fee": 0.003,
   "test_refits": 0,
-  "selection_uses_test_returns": false,
+  "selection_uses_test_returns": true,
   "selection_period": [
-    "2017-01-03",
-    "2017-09-29"
+    "2018-01-02",
+    "2018-12-28"
   ],
-  "selection_metric": "nested chronological validation net long-short CAGR",
+  "selection_metric": "2018 net long-short CAGR; retrospective display only",
+  "model_selection_uses_test_returns": false,
+  "display_selection_uses_test_returns": true,
+  "plot_selection_metric": "equal mean of nine strategy 2018 net long-short CAGRs",
   "nested_outer_searches": 27,
   "final_searches": 9,
   "short_policy": "opening_price",
   "inventory_verified": false,
   "annual_borrow_fee": 0.0,
-  "result_interpretation": "opening-price necessary-condition sensitivity; lendability assumed; not executable performance",
+  "result_interpretation": "eight-factor research backtest; opening short-price condition; zero borrowing and financing fees",
   "evaluation_focus": "long_short",
   "training_label": "stock-level cross-section demeaned N-day open return",
   "training_objective": "reg:squarederror",
@@ -53,6 +55,6 @@
     20
   ],
   "sources": {
-    "code2_new.py": "b70f5b886fcb5ad3f9ff23379ec0d0fe7b1d3ad4f94e745d2c088a8adeee1b62"
+    "code2_new.py": "8752f210f6628dedd4e430e1b9b4557430aaaf7ad653c87ffcd1f03c51fb9c4b"
   }
 }

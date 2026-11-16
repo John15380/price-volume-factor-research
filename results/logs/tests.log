@@ -50,9 +50,11 @@ test_st_excluded_from_signal_and_new_risk_not_exits (__main__.run_self_tests.<lo
 test_st_long_reduction_is_not_blocked_by_admission_rule (__main__.run_self_tests.<locals>.HistoricalTradingDataTests.test_st_long_reduction_is_not_blocked_by_admission_rule) ... ok
 test_st_short_cover_is_not_blocked_by_admission_rule (__main__.run_self_tests.<locals>.HistoricalTradingDataTests.test_st_short_cover_is_not_blocked_by_admission_rule) ... ok
 test_unknown_limit_does_not_assume_unlimited_trading (__main__.run_self_tests.<locals>.HistoricalTradingDataTests.test_unknown_limit_does_not_assume_unlimited_trading) ... ok
+test_constant_rank_ic_does_not_produce_infinite_icir (__main__.run_self_tests.<locals>.TunedModelTests.test_constant_rank_ic_does_not_produce_infinite_icir) ... ok
 test_correlated_pair_keeps_better_representative (__main__.run_self_tests.<locals>.TunedModelTests.test_correlated_pair_keeps_better_representative) ... ok
 test_future_data_cannot_change_training_selection (__main__.run_self_tests.<locals>.TunedModelTests.test_future_data_cannot_change_training_selection) ... ok
 test_purged_validation_excludes_unrealized_training_labels (__main__.run_self_tests.<locals>.TunedModelTests.test_purged_validation_excludes_unrealized_training_labels) ... ok
+test_rank_icir_uses_holding_period_and_excludes_missing_observations (__main__.run_self_tests.<locals>.TunedModelTests.test_rank_icir_uses_holding_period_and_excludes_missing_observations) ... ok
 test_removed_factors_cannot_enter_active_catalog (__main__.run_self_tests.<locals>.TunedModelTests.test_removed_factors_cannot_enter_active_catalog) ... ok
 test_round_trip_is_three_per_thousand (__main__.run_self_tests.<locals>.TunedModelTests.test_round_trip_is_three_per_thousand) ... ok
 test_search_is_reproducible_and_covers_parameters (__main__.run_self_tests.<locals>.TunedModelTests.test_search_is_reproducible_and_covers_parameters) ... ok
@@ -66,11 +68,13 @@ test_window_excludes_old_signal_dates (__main__.run_self_tests.<locals>.ModelTim
 test_index_membership_routes_to_correct_historical_file (__main__.run_self_tests.<locals>.BenchmarkTests.test_index_membership_routes_to_correct_historical_file) ... ok
 test_single_long_matches_group_book_with_fees_and_blocked_orders (__main__.run_self_tests.<locals>.BenchmarkTests.test_single_long_matches_group_book_with_fees_and_blocked_orders) ... ok
 test_actual_quarter_validation_purges_unrealized_labels (__main__.run_self_tests.<locals>.FixedProtocolTests.test_actual_quarter_validation_purges_unrealized_labels) ... ok
+test_common_plot_selection_averages_every_strategy (__main__.run_self_tests.<locals>.FixedProtocolTests.test_common_plot_selection_averages_every_strategy) ... ok
 test_frozen_model_weights_do_not_depend_on_2018_features (__main__.run_self_tests.<locals>.FixedProtocolTests.test_frozen_model_weights_do_not_depend_on_2018_features) ... ok
 test_later_2017_prices_cannot_change_q1_parameters_or_predictions (__main__.run_self_tests.<locals>.FixedProtocolTests.test_later_2017_prices_cannot_change_q1_parameters_or_predictions) ... ok
 test_nested_search_only_sees_labels_realized_by_seed (__main__.run_self_tests.<locals>.FixedProtocolTests.test_nested_search_only_sees_labels_realized_by_seed) ... ok
 test_pool_selection_uses_validation_long_short_instead_of_long_or_test (__main__.run_self_tests.<locals>.FixedProtocolTests.test_pool_selection_uses_validation_long_short_instead_of_long_or_test) ... ok
 test_prediction_rejects_parameters_selected_after_signal (__main__.run_self_tests.<locals>.FixedProtocolTests.test_prediction_rejects_parameters_selected_after_signal) ... ok
+test_test_highlighting_is_explicitly_retrospective (__main__.run_self_tests.<locals>.FixedProtocolTests.test_test_highlighting_is_explicitly_retrospective) ... ok
 test_training_ends_before_2018_and_future_features_cannot_change_it (__main__.run_self_tests.<locals>.FixedProtocolTests.test_training_ends_before_2018_and_future_features_cannot_change_it) ... ok
 test_blocked_addition_preserves_existing_short (__main__.run_self_tests.<locals>.ShortExecutionTests.test_blocked_addition_preserves_existing_short) ... ok
 test_inventory_snapshot_availability_and_price_scale (__main__.run_self_tests.<locals>.ShortExecutionTests.test_inventory_snapshot_availability_and_price_scale) ... ok
@@ -85,6 +89,6 @@ test_verified_inventory_clips_partial_new_borrow (__main__.run_self_tests.<local
 test_verified_mode_requires_actual_inventory_file (__main__.run_self_tests.<locals>.ShortExecutionTests.test_verified_mode_requires_actual_inventory_file) ... ok
 
 ----------------------------------------------------------------------
-Ran 85 tests in 13.308s
+Ran 89 tests in 15.614s
 
 OK

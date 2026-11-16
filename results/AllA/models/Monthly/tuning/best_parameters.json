@@ -11,12 +11,12 @@
     "max_bin": 128,
     "corr_threshold": 0.7,
     "max_features": 6,
-    "n_estimators": 146
+    "n_estimators": 130
   },
   "winner_trial": 19,
-  "inner_mean_rank_ic": 0.1440993004261283,
-  "inner_rank_ic_std": 0.002544324089668611,
-  "selection_score": 0.14384486801716145,
+  "inner_mean_rank_ic": 0.14368339820933887,
+  "inner_rank_ic_std": 0.0033580070401483574,
+  "selection_score": 0.14334759750532403,
   "candidates": 96,
   "finalists": 16,
   "cv_fits": 144,

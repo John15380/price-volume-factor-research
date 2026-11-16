@@ -1,0 +1,138 @@
+2026-11-16 20:27:39,238 INFO 已验证8因子及实际交易状态输入；不复用模型预测。
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l1dcachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l2cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l3cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.optional.neon'. Detail: [errno 1] Operation not permitted
+2026-11-16 20:27:42,225 INFO 5日固定模型：2016--2017标签已实现样本127810行，96候选/16晋级
+2026-11-16 20:27:42,247 INFO 10日固定模型：2016--2017标签已实现样本125896行，96候选/16晋级
+2026-11-16 20:27:42,249 INFO 20日固定模型：2016--2017标签已实现样本122403行，96候选/16晋级
+2026-11-16 20:28:12,302 INFO tuning 初筛 24/96
+2026-11-16 20:28:13,745 INFO tuning 初筛 24/96
+2026-11-16 20:28:14,202 INFO tuning 初筛 24/96
+2026-11-16 20:28:18,590 INFO tuning 初筛 48/96
+2026-11-16 20:28:22,846 INFO tuning 初筛 48/96
+2026-11-16 20:28:23,248 INFO tuning 初筛 48/96
+2026-11-16 20:28:25,424 INFO tuning 初筛 72/96
+2026-11-16 20:28:31,768 INFO tuning 初筛 96/96
+2026-11-16 20:28:32,152 INFO tuning 初筛 72/96
+2026-11-16 20:28:32,978 INFO tuning 初筛 72/96
+2026-11-16 20:28:41,169 INFO tuning 初筛 96/96
+2026-11-16 20:28:41,520 INFO tuning 初筛 96/96
+2026-11-16 20:28:45,532 INFO 5日外层Q1完成：参数/标签截止2016-12-30，12棵树
+2026-11-16 20:28:51,211 INFO tuning 初筛 24/96
+2026-11-16 20:28:55,387 INFO tuning 初筛 48/96
+2026-11-16 20:28:56,970 INFO 10日外层Q1完成：参数/标签截止2016-12-30，30棵树
+2026-11-16 20:28:58,034 INFO 20日外层Q1完成：参数/标签截止2016-12-30，8棵树
+2026-11-16 20:29:00,003 INFO tuning 初筛 72/96
+2026-11-16 20:29:02,670 INFO tuning 初筛 24/96
+2026-11-16 20:29:02,994 INFO tuning 初筛 24/96
+2026-11-16 20:29:04,739 INFO tuning 初筛 96/96
+2026-11-16 20:29:06,807 INFO tuning 初筛 48/96
+2026-11-16 20:29:06,906 INFO tuning 初筛 48/96
+2026-11-16 20:29:11,110 INFO tuning 初筛 72/96
+2026-11-16 20:29:12,120 INFO tuning 初筛 72/96
+2026-11-16 20:29:15,362 INFO tuning 初筛 96/96
+2026-11-16 20:29:16,745 INFO tuning 初筛 96/96
+2026-11-16 20:29:28,879 INFO 20日外层Q2完成：参数/标签截止2017-03-31，11棵树
+2026-11-16 20:29:31,156 INFO 5日外层Q2完成：参数/标签截止2017-03-31，111棵树
+2026-11-16 20:29:35,597 INFO 10日外层Q2完成：参数/标签截止2017-03-31，18棵树
+2026-11-16 20:29:43,392 INFO tuning 初筛 24/96
+2026-11-16 20:29:44,462 INFO tuning 初筛 24/96
+2026-11-16 20:29:53,172 INFO tuning 初筛 24/96
+2026-11-16 20:29:54,488 INFO tuning 初筛 48/96
+2026-11-16 20:29:56,437 INFO tuning 初筛 48/96
+2026-11-16 20:30:07,058 INFO tuning 初筛 72/96
+2026-11-16 20:30:08,452 INFO tuning 初筛 48/96
+2026-11-16 20:30:10,208 INFO tuning 初筛 72/96
+2026-11-16 20:30:17,100 INFO tuning 初筛 96/96
+2026-11-16 20:30:22,067 INFO tuning 初筛 96/96
+2026-11-16 20:30:23,656 INFO tuning 初筛 72/96
+2026-11-16 20:30:37,266 INFO tuning 初筛 96/96
+2026-11-16 20:30:47,630 INFO 5日外层Q3完成：参数/标签截止2017-06-30，86棵树
+2026-11-16 20:30:58,872 INFO tuning 初筛 24/96
+2026-11-16 20:31:04,036 INFO 20日外层Q3完成：参数/标签截止2017-06-30，416棵树
+2026-11-16 20:31:07,775 INFO tuning 初筛 48/96
+2026-11-16 20:31:14,521 INFO tuning 初筛 24/96
+2026-11-16 20:31:18,072 INFO tuning 初筛 72/96
+2026-11-16 20:31:21,704 INFO 10日外层Q3完成：参数/标签截止2017-06-30，162棵树
+2026-11-16 20:31:24,651 INFO tuning 初筛 48/96
+2026-11-16 20:31:27,407 INFO tuning 初筛 96/96
+2026-11-16 20:31:32,864 INFO tuning 初筛 24/96
+2026-11-16 20:31:34,970 INFO tuning 初筛 72/96
+2026-11-16 20:31:42,231 INFO tuning 初筛 48/96
+2026-11-16 20:31:44,277 INFO tuning 初筛 96/96
+2026-11-16 20:31:51,728 INFO tuning 初筛 72/96
+2026-11-16 20:32:01,166 INFO 5日固定模型完成：HF_CPV|HF_Skewness|HF_IdealReversal|HF_SmartMoney|HF_LowAmpMomentum|HF_IdealAmplitude|HF_CDPDP|HF_CDPDP4；2018全年预测69325行，未重训
+2026-11-16 20:32:03,256 INFO tuning 初筛 96/96
+2026-11-16 20:32:21,826 INFO 20日固定模型完成：HF_Skewness|HF_CPV|HF_IdealReversal|HF_LowAmpMomentum|HF_CDPDP|HF_SmartMoney|HF_IdealAmplitude；2018全年预测69325行，未重训
+2026-11-16 20:32:36,454 INFO 10日固定模型完成：HF_Skewness|HF_IdealReversal|HF_CPV|HF_LowAmpMomentum|HF_SmartMoney|HF_IdealAmplitude|HF_CDPDP；2018全年预测69325行，未重训
+2026-11-16 20:32:39,406 INFO 沪深300固定实验完成：2016--2017训练，2018回测
+2026-11-16 20:32:44,469 INFO 已验证8因子及实际交易状态输入；不复用模型预测。
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l1dcachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l2cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l3cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.optional.neon'. Detail: [errno 1] Operation not permitted
+2026-11-16 20:32:50,480 INFO 5日固定模型：2016--2017标签已实现样本208632行，96候选/16晋级
+2026-11-16 20:32:50,480 INFO 20日固定模型：2016--2017标签已实现样本199426行，96候选/16晋级
+2026-11-16 20:32:50,481 INFO 10日固定模型：2016--2017标签已实现样本205263行，96候选/16晋级
+2026-11-16 20:33:18,004 INFO tuning 初筛 24/96
+2026-11-16 20:33:23,488 INFO tuning 初筛 24/96
+2026-11-16 20:33:24,122 INFO tuning 初筛 24/96
+2026-11-16 20:33:40,028 INFO tuning 初筛 48/96
+2026-11-16 20:33:46,627 INFO tuning 初筛 48/96
+2026-11-16 20:33:53,405 INFO tuning 初筛 48/96
+2026-11-16 20:33:59,883 INFO tuning 初筛 72/96
+2026-11-16 20:34:11,467 INFO tuning 初筛 72/96
+2026-11-16 20:34:15,425 INFO tuning 初筛 72/96
+2026-11-16 20:34:16,900 INFO tuning 初筛 96/96
+2026-11-16 20:34:29,496 INFO tuning 初筛 96/96
+2026-11-16 20:34:34,637 INFO tuning 初筛 96/96
+2026-11-16 20:34:45,511 INFO 20日外层Q1完成：参数/标签截止2016-12-30，13棵树
+2026-11-16 20:34:52,404 INFO tuning 初筛 24/96
+2026-11-16 20:34:57,579 INFO tuning 初筛 48/96
+2026-11-16 20:35:03,655 INFO tuning 初筛 72/96
+2026-11-16 20:35:09,214 INFO 5日外层Q1完成：参数/标签截止2016-12-30，99棵树
+2026-11-16 20:35:10,286 INFO tuning 初筛 96/96
+2026-11-16 20:35:15,319 INFO 10日外层Q1完成：参数/标签截止2016-12-30，89棵树
+2026-11-16 20:35:21,304 INFO tuning 初筛 24/96
+2026-11-16 20:35:27,321 INFO tuning 初筛 24/96
+2026-11-16 20:35:33,870 INFO tuning 初筛 48/96
+2026-11-16 20:35:38,823 INFO tuning 初筛 48/96
+2026-11-16 20:35:44,365 INFO tuning 初筛 72/96
+2026-11-16 20:35:46,017 INFO 20日外层Q2完成：参数/标签截止2017-03-31，15棵树
+2026-11-16 20:35:47,617 INFO tuning 初筛 72/96
+2026-11-16 20:35:52,272 INFO tuning 初筛 96/96
+2026-11-16 20:35:55,460 INFO tuning 初筛 96/96
+2026-11-16 20:35:56,489 INFO tuning 初筛 24/96
+2026-11-16 20:36:07,057 INFO tuning 初筛 48/96
+2026-11-16 20:36:18,047 INFO tuning 初筛 72/96
+2026-11-16 20:36:25,081 INFO 10日外层Q2完成：参数/标签截止2017-03-31，36棵树
+2026-11-16 20:36:26,332 INFO 5日外层Q2完成：参数/标签截止2017-03-31，26棵树
+2026-11-16 20:36:28,800 INFO tuning 初筛 96/96
+2026-11-16 20:36:49,601 INFO tuning 初筛 24/96
+2026-11-16 20:36:51,685 INFO tuning 初筛 24/96
+2026-11-16 20:37:03,459 INFO 20日外层Q3完成：参数/标签截止2017-06-30，21棵树
+2026-11-16 20:37:09,056 INFO tuning 初筛 48/96
+2026-11-16 20:37:10,136 INFO tuning 初筛 48/96
+2026-11-16 20:37:21,586 INFO tuning 初筛 24/96
+2026-11-16 20:37:30,390 INFO tuning 初筛 72/96
+2026-11-16 20:37:34,104 INFO tuning 初筛 72/96
+2026-11-16 20:37:38,883 INFO tuning 初筛 48/96
+2026-11-16 20:37:49,063 INFO tuning 初筛 96/96
+2026-11-16 20:37:53,815 INFO tuning 初筛 96/96
+2026-11-16 20:37:55,003 INFO tuning 初筛 72/96
+2026-11-16 20:38:12,282 INFO tuning 初筛 96/96
+2026-11-16 20:38:38,318 INFO 10日外层Q3完成：参数/标签截止2017-06-30，18棵树
+2026-11-16 20:38:42,974 INFO 5日外层Q3完成：参数/标签截止2017-06-30，34棵树
+2026-11-16 20:38:47,904 INFO 20日固定模型完成：HF_Skewness|HF_CPV|HF_IdealReversal|HF_CDPDP；2018全年预测112767行，未重训
+2026-11-16 20:38:52,231 INFO tuning 初筛 24/96
+2026-11-16 20:38:53,858 INFO tuning 初筛 24/96
+2026-11-16 20:39:02,493 INFO tuning 初筛 48/96
+2026-11-16 20:39:02,866 INFO tuning 初筛 48/96
+2026-11-16 20:39:11,640 INFO tuning 初筛 72/96
+2026-11-16 20:39:14,544 INFO tuning 初筛 72/96
+2026-11-16 20:39:20,811 INFO tuning 初筛 96/96
+2026-11-16 20:39:26,950 INFO tuning 初筛 96/96
+2026-11-16 20:39:55,204 INFO 5日固定模型完成：HF_Skewness|HF_CPV|HF_IdealReversal|HF_SmartMoney|HF_CDPDP|HF_IdealAmplitude|HF_CDPDP4|HF_LowAmpMomentum；2018全年预测112767行，未重训
+2026-11-16 20:40:03,268 INFO 10日固定模型完成：HF_Skewness|HF_CPV|HF_IdealReversal|HF_SmartMoney|HF_CDPDP|HF_IdealAmplitude；2018全年预测112767行，未重训
+2026-11-16 20:40:05,185 INFO 中证500固定实验完成：2016--2017训练，2018回测

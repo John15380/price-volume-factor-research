@@ -1,6 +1,6 @@
 {
-  "protocol": "nested_v2_short_opening_price_v3",
-  "model_protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "protocol": "eight_factors_no_cdpp_opening_price_2018_v4",
+  "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "universe": "300",
   "training": [
     "2016-01-01",
@@ -21,7 +21,6 @@
     "HF_CDPDP",
     "HF_IdealAmplitude",
     "HF_IdealReversal",
-    "HF_CDPP",
     "HF_CDPDP4",
     "HF_LowAmpMomentum",
     "HF_Skewness"
@@ -36,30 +35,8 @@
   "short_policy": "opening_price",
   "annual_borrow_fee": 0.0,
   "inventory_verified": false,
-  "model_reuse": {
-    "baseline_commit": "d607edd",
-    "learning_code_ast_checked": [
-      "tuning_rank_ic_by_day",
-      "tuning_selector_statistics",
-      "tuning_choose_features",
-      "tuning_purged_folds",
-      "tuning_candidate_parameters",
-      "tuning_sample_weights",
-      "tuning_fitted_trial",
-      "tuning_tune",
-      "model_make_labels",
-      "fixed_training_sample",
-      "fixed_validation_folds",
-      "fixed_outer_history",
-      "fixed_predict",
-      "fixed_fit",
-      "fixed_model"
-    ],
-    "input_hashes_checked": true,
-    "model_hashes_checked": true,
-    "refits_in_current_replay": 0
-  },
+  "fresh_model_training": true,
   "sources": {
-    "code2_new.py": "b70f5b886fcb5ad3f9ff23379ec0d0fe7b1d3ad4f94e745d2c088a8adeee1b62"
+    "code2_new.py": "8752f210f6628dedd4e430e1b9b4557430aaaf7ad653c87ffcd1f03c51fb9c4b"
   }
 }
