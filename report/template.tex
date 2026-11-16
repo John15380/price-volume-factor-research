@@ -12,7 +12,7 @@
 \setcitestyle{numbers,square}
 \hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue!55!black,
 pdftitle={量价八因子与XGBoost合成回测},pdfauthor={岳瀚阳}}
-\renewcommand{\today}{2026年11月16日}
+\renewcommand{\today}{2026年11月17日}
 \mycourse{《量化投资》}
 \mytitle{量价八因子与XGBoost合成回测}
 \myauthor{岳瀚阳}\mystudentid{3230104443}\myschool{管理学院}\myteacher{曾涛、彭旺}
@@ -35,12 +35,12 @@ pdftitle={量价八因子与XGBoost合成回测},pdfauthor={岳瀚阳}}
 \myabstract{
 本文以2016--2017年为训练期、2018年为固定回测期，研究八个量价因子及XGBoost合成分数。
 候选为SmartMoney、CPV、CDPDP$^{\prime}$、IdealAmplitude、IdealReversal、CDPDP-4、LowAmpMomentum与Skewness。
-分别检验历史沪深300、中证500和本地全A股股票池，以及5、10、20交易日期限，完整列示九项策略各九组、共81组2018结果。
-统计指标包括IC、ICIR、RankIC、RankICIR，以及双边千三扣费后的多空累计收益、年化收益、波动、夏普和最大回撤。
+分别检验历史沪深300和中证500股票池，以及5、10、20交易日期限，完整列示九项策略各六组、共54组2018结果。
+统计指标包括IC、ICIR、RankIC、RankICIR，以及双边千三扣费后的多空累计收益、年化波动、夏普和最大回撤。
 买卖每次按实际成交金额收取0.0015，借券费和融资费均设为0。每张策略图叠加五分组与多空净值，并保留五分组收益柱状图。
 XGBoost在每个外层验证季度之前独立调参，最终以2016--2017年已实现标签拟合，2018全年冻结。
-各表加粗该策略2018费后多空年化最高的配置。所有图统一采用九项策略2018年化收益等权平均最高的一组股票池与期限，仅用于事后展示。
-统一画图配置为\PlotPool、\PlotPeriod，九项策略平均年化\PlotMeanAnnual；该配置的XGBoost多空累计\BestModelLS、年化\BestModelLSAnnual、夏普\BestModelLSSharpe。
+各表加粗该策略2018费后多空累计收益最高的配置。所有图统一采用九项策略2018累计收益等权平均最高的一组股票池与期限，仅用于事后展示。
+统一画图配置为\PlotPool、\PlotPeriod，九项策略平均累计收益\PlotMeanTotal；该配置的XGBoost多空累计\BestModelLS、夏普\BestModelLSSharpe。
 }
 \keyword{量价因子；XGBoost；RankIC；RankICIR；五分组；多空回测}
 \tableofcontents
@@ -49,7 +49,7 @@ XGBoost在每个外层验证季度之前独立调参，最终以2016--2017年已
 \section{研究范围与数据执行规则}
 本实验固定2016--2017训练、2018回测，使用八个候选因子构建XGBoost合成分数。
 本地分钟数据覆盖2016--2018年731个交易日，日行情额外提供200交易日预热。
-股票池按对应日期的历史成分确定，各股票池独立完成截面处理。单因子和模型均保留三池三期限的全部结果。
+股票池按对应日期的历史成分确定，各股票池独立完成截面处理。单因子和模型均保留两池三期限的全部结果。
 评价以费后多空组合为主，五分组曲线和柱状图用于观察因子排序。
 
 \begin{table}[H]\centering\normalsize
@@ -110,7 +110,7 @@ XGBoost以个股相对收益的平方误差训练，日期总样本权重相同�
 因子去重只使用对应训练折的信息：至少20个有效IC日、覆盖率不少于50\%，按日RankIC绝对均值/标准差择优；截面Spearman相关绝对值达到0.70/0.80/0.90阈值时保留优质代表。
 最多4/6/8个因子预算和树参数联合搜索。每次搜索96候选、前16组晋级三折；初筛最多300树、25轮早停，精筛最多1200树、50轮早停。
 参数分数为三折日RankIC均值减0.1倍折间标准差，树数取获胜候选三折最优树数中位数。
-现有冻结模型来自三池三期限共\Searches 次搜索、\CVFits 次内层拟合，含\ValidationModels 个外层模型与\Models 个最终模型。本轮只修改分组和执行：核对学习代码抽象语法树、因子输入和模型哈希后重新生成预测，与保存预测逐值核对一致，再重跑组合；不重新调参或训练。
+现有冻结模型来自两池三期限共\Searches 次搜索、\CVFits 次内层拟合，含\ValidationModels 个外层模型与\Models 个最终模型。本轮仅保留沪深300与中证500，并调整展示列。核对学习代码抽象语法树、因子输入和模型哈希后，沿用冻结模型重新生成预测，与保存预测逐值核对一致，再核验组合；不重新调参或训练。
 
 \begin{table}[H]\centering\normalsize
 \caption{执行lag、标签跨度和最后可训练信号}
@@ -125,7 +125,7 @@ N & 特征lag & 执行lag & 标签区间 & 最晚训练信号 & 标签实现截�
 \clearpage
 \subsection{固定模型参数与训练期因子相关性}
 \begin{table}[H]\centering\normalsize
-\caption{三池三期限的最终XGBoost参数}
+\caption{两池三期限的最终XGBoost参数}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{llrrrrrr}\toprule
 股票池 & 期限 & 深度 & 学习率 & 树数 & 相关阈值 & 因子上限 & 内层RankIC\\\midrule
@@ -137,16 +137,16 @@ N & 特征lag & 执行lag & 标签区间 & 最晚训练信号 & 标签实现截�
 \end{figure}
 \begin{table}[H]\centering\normalsize
 \caption{八因子在最终模型中的入选次数：每池三个期限}
-\begin{tabular}{lrrr}\toprule
-因子 & 沪深300 & 中证500 & 全部A股\\\midrule
+\begin{tabular}{lrr}\toprule
+因子 & 沪深300 & 中证500\\\midrule
 \input{tables/selection.tex}\bottomrule
 \end{tabular}\end{table}
 
 \clearpage
 \section{指标定义及完整结果的阅读方法}
-每项策略列出沪深300、中证500、全部A股与5/10/20交易日的笛卡尔积，合计九组；八个单因子和XGBoost共81组。
-\textbf{每项策略加粗2018费后多空年化收益最高的配置。}并列时按固定股票池和期限顺序处理。
-所有图统一使用\PlotPool、\PlotPeriod。该配置在九项策略的2018费后多空年化等权平均中最高，为\PlotMeanAnnual；这个均值用于选择展示配置，不是新组合的净值收益。各因子图不再分别挑选配置，因此图示配置可以不同于该因子的加粗行。
+每项策略列出沪深300、中证500与5/10/20交易日的笛卡尔积，合计六组；八个单因子和XGBoost共54组。
+\textbf{每项策略加粗2018费后多空累计收益最高的配置。}并列时按固定股票池和期限顺序处理。
+所有图统一使用\PlotPool、\PlotPeriod。该配置在九项策略的2018费后多空累计收益等权平均中最高，为\PlotMeanTotal；这个均值用于选择展示配置，不是新组合的净值收益。各因子图不再分别挑选配置，因此图示配置可以不同于该因子的加粗行。
 表格加粗和统一选图都属于2018结果的事后汇总，不进入训练、因子去重和超参数搜索。
 
 IC为因子与对应N日开盘收益的截面Pearson相关，RankIC为Spearman相关；按调仓信号日计算，不将每日重叠的N日标签当成独立持有期。
@@ -158,8 +158,8 @@ IC为因子与对应N日开盘收益的截面Pearson相关，RankIC为Spearman�
 ICIR采用相同年化方法。表中相关指标保留原始因子方向：低值做多的因子出现负RankIC可以代表有效排序；模型预测分数和LowAmpMomentum高值做多。
 只统计对应持有期收益已完整实现且相关可计算的观测，并列出有效IC期数；2018末不完整持有期不进入IC，但实际持仓和末日退出仍进入净值。
 
-累计收益描述整个2018年共243个交易日的实际盈亏；年化收益将该期间收益按一年250交易日换算，两者属于同一组合的不同时间尺度。验证年化单独对应2017年第一至第三季度，不能与2018累计收益直接比较。
-多空累计收益为期末NAV减1；年化收益为$NAV_{end}^{250/D}-1$，D为实际日收益条数；年化波动为日收益样本标准差乘$\sqrt{250}$。
+累计收益描述整个2018年共243个交易日的实际盈亏。结果表保留累计收益、年化波动、夏普、最大回撤及换手，不展示收益年化列。
+多空累计收益为期末NAV减1；年化波动为日收益样本标准差乘$\sqrt{250}$。
 夏普为日算术平均收益除以日收益样本标准差、再乘$\sqrt{250}$，无风险收益率设0。
 最大回撤按包含初始净值1的每日净值路径计算。日均换手为双腿实际成交金额/成交前净资产的日平均。
 Q1为预先确定的看好组、Q5为看差组，做多Q1、做空Q5。理想等额持仓下，多空价格收益为$R_{Q1}-R_{Q5}$；实际回测按逐日持仓与现金记账并扣除交易费用，亏损保留负号，不取绝对值。五分组曲线来自各组独立账本；期末两条净值的差不能替代逐日复利的多空净值。
@@ -169,11 +169,11 @@ Q1为预先确定的看好组、Q5为看差组，做多Q1、做空Q5。理想等
 \clearpage
 \section{核验与复现}
 本轮共核验\Series 条主组合及基准序列、\Trades 笔成交的现金、头寸、费用和净值。
-全部最终训练标签在2018前实现；27个外层模型的参数可知日与标签截止均不晚于对应信号，2018固定权重哈希保持不变。
+全部最终训练标签在2018前实现；\ValidationModels 个外层模型的参数可知日与标签截止均不晚于对应信号，2018固定权重哈希保持不变。
 \Tests 项内置测试通过，包含改变未来季度行情不影响早期验证模型、改变2018特征不影响最终权重、双边费率、五组、卖空执行和RankICIR频率核验。
 
-完整81组指标见\path{results/factor_metrics.csv}，全部候选及验证依据见\path{results/universe_comparison.csv}，加粗配置见\path{results/selected_cases.csv}，统一选图依据见\path{results/plot_configurations.csv}和\path{results/plot_cases.csv}。
-逐日账本、成交和IC按股票池、验证/测试、因子和期限整理于\path{results/CSI300/}、\path{results/CSI500/}、\path{results/AllA/}。
+完整54组指标见\path{results/factor_metrics.csv}，全部结果明细见\path{results/universe_comparison.csv}，加粗配置见\path{results/selected_cases.csv}，统一选图依据见\path{results/plot_configurations.csv}和\path{results/plot_cases.csv}。
+逐日账本、成交和IC按股票池、验证/测试、因子和期限整理于\path{results/CSI300/}、\path{results/CSI500/}。
 当前唯一源码为\path{code2_new.py}，最终PDF为根目录\path{report.pdf}，历史版本仅保存于本地Git。
 
 \noindent\attachfile[icon=Paperclip]{../code2_new.py}\quad 完整源码和内置测试。\par

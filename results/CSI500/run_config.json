@@ -1,5 +1,5 @@
 {
-  "protocol": "eight_factors_five_groups_unconstrained_short_2018_v5",
+  "protocol": "eight_factors_two_indices_five_groups_2018_v6",
   "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "universe": "500",
   "training": [
@@ -38,6 +38,6 @@
   "fresh_model_training": false,
   "verified_frozen_models_reused": true,
   "sources": {
-    "code2_new.py": "29595884b56d4b5ea43e40cf5497186ce8c88ff30e62b748bff5c73619388c45"
+    "code2_new.py": "6b9c167049b340f6fbdee6008f5cb0336a4df61e7154c265b96852d9896bfa3f"
   }
 }

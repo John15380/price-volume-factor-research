@@ -1,5 +1,5 @@
 {
-  "protocol": "eight_factors_five_groups_unconstrained_short_2018_v5",
+  "protocol": "eight_factors_two_indices_five_groups_2018_v6",
   "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "training": [
     "2016-01-01",
@@ -11,8 +11,7 @@
   ],
   "universes": {
     "300": "CSI300",
-    "500": "CSI500",
-    "all": "AllA"
+    "500": "CSI500"
   },
   "candidate_factors": [
     "HF_SmartMoney",
@@ -32,12 +31,12 @@
     "2018-01-02",
     "2018-12-28"
   ],
-  "selection_metric": "2018 net long-short CAGR; retrospective display only",
+  "selection_metric": "2018 net long-short cumulative return; retrospective display only",
   "model_selection_uses_test_returns": false,
   "display_selection_uses_test_returns": true,
-  "plot_selection_metric": "equal mean of nine strategy 2018 net long-short CAGRs",
-  "nested_outer_searches": 27,
-  "final_searches": 9,
+  "plot_selection_metric": "equal mean of nine strategy 2018 net long-short cumulative returns",
+  "nested_outer_searches": 18,
+  "final_searches": 6,
   "short_policy": "unconstrained",
   "inventory_verified": false,
   "annual_borrow_fee": 0.0,
@@ -55,6 +54,6 @@
     20
   ],
   "sources": {
-    "code2_new.py": "29595884b56d4b5ea43e40cf5497186ce8c88ff30e62b748bff5c73619388c45"
+    "code2_new.py": "6b9c167049b340f6fbdee6008f5cb0336a4df61e7154c265b96852d9896bfa3f"
   }
 }

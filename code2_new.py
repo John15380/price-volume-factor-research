@@ -1,7 +1,7 @@
 """量价多因子实验的唯一代码文件。
 
 python code2_new.py --with-xgboost   # 八因子、训练期筛选/调参和五组回测
-python code2_new.py --compare-universes  # 三池固定训练及2018回测
+python code2_new.py --compare-universes  # 两池固定训练及2018回测
 python code2_new.py --self-test     # 因子、账本和时间隔离自动测试
 python code2_new.py --report        # 核验当前结果并生成根目录 report.pdf
 
@@ -1474,24 +1474,8 @@ def pipeline_prepare_inputs(cfg):
         PIPELINE_LOG.info('已验证%d因子及实际交易状态输入；不复用模型预测。',len(PIPELINE_CANDIDATES))
     else:
         inner = replace(cfg, output_dir=folder)
-        shared = folder.parent.parent / 'AllA/input'
-        if cfg.index in ('300', '500') and (shared / 'rolling_components.parquet').exists():
-            # 个股时间序列可以复用；市值中性化及截面标准化必须在当前池内重算。
-            daily = pd.read_parquet(shared / 'daily_market.parquet')
-            calendar = pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
-            universe = DataLoader(cfg).universe(calendar)
-            universe.SecuCode = trading_canonical(universe.SecuCode)
-            universe = universe.drop_duplicates(KEYS)
-            symbols = sorted(universe.SecuCode.unique())
-            daily = daily[daily.SecuCode.isin(symbols)].copy()
-            daily.to_parquet(folder / 'daily_market.parquet', index=False)
-            eligible = daily.loc[daily.SignalEligible, KEYS].merge(universe, on=KEYS, validate='one_to_one')
-            industry, cap = trading_industry_cap(DataLoader(cfg), calendar, symbols)
-            rolling = pd.read_parquet(shared / 'rolling_components.parquet')
-            rolling = rolling[rolling.SecuCode.isin(symbols)]
-        else:
-            calendar, symbols, daily, eligible, industry, cap = research_load_data(inner, cfg.index)
-            rolling = research_calculate_factors(inner, calendar, symbols, daily)
+        calendar, symbols, daily, eligible, industry, cap = research_load_data(inner, cfg.index)
+        rolling = research_calculate_factors(inner, calendar, symbols, daily)
         features = research_preprocess(rolling, eligible, daily, cap)[KEYS + list(PIPELINE_CANDIDATES)]
         features.to_parquet(folder / 'features.parquet', index=False)
         pipeline_write_input_manifest(cfg, 'fresh raw-minute calculation with current factor definitions')
@@ -1511,8 +1495,8 @@ def pipeline_export(features, factor, period, market, cfg, destination, low):
 
 # 对外公开的当前八因子目录
 FACTORS = RESEARCH_FACTORS
-UNIVERSE_FOLDERS = {'300': 'CSI300', '500': 'CSI500', 'all': 'AllA'}
-UNIVERSE_NAMES = {'300': '沪深300', '500': '中证500', 'all': '全部A股'}
+UNIVERSE_FOLDERS = {'300': 'CSI300', '500': 'CSI500'}
+UNIVERSE_NAMES = {'300': '沪深300', '500': '中证500'}
 
 
 
@@ -1523,7 +1507,7 @@ TEST_START = pd.Timestamp('2018-01-01')
 VALIDATION_START = pd.Timestamp('2017-01-01')
 VALIDATION_END = pd.Timestamp('2017-09-30')
 PROTOCOL = 'eight_factors_no_cdpp_nested_2016_2017_v4'
-EXECUTION_PROTOCOL = 'eight_factors_five_groups_unconstrained_short_2018_v5'
+EXECUTION_PROTOCOL = 'eight_factors_two_indices_five_groups_2018_v6'
 
 
 def fixed_training_sample(features, training_market, days):
@@ -1799,20 +1783,20 @@ def choose_validation_cases(validation):
 
 def choose_test_display_cases(test):
     """仅用于2018结果表加粗，不能用于训练、调参或声称独立选型。"""
-    return test.sort_values(['Factor','LSAnnual','Universe','Period'],
+    return test.sort_values(['Factor','LSTotal','Universe','Period'],
                             ascending=[True,False,True,True]).drop_duplicates('Factor').copy()
 
 
 def rank_common_plot_configurations(test):
-    """统一选图：九项策略2018费后多空年化指标的等权均值，不构造新组合收益。"""
+    """统一选图：九项策略2018费后多空累计收益的等权均值，不构造新组合收益。"""
     if test.duplicated(['Factor','Universe','Period']).any():
         raise ValueError('统一选图需要每个因子/股票池/期限仅一条记录。')
     ranking=test.groupby(['Universe','Period'],as_index=False).agg(
-        StrategyCount=('Factor','nunique'),MeanLSAnnual=('LSAnnual','mean'),
+        StrategyCount=('Factor','nunique'),
         MeanLSTotal=('LSTotal','mean'),MeanLSSharpe=('LSSharpe','mean'))
     if not ranking.StrategyCount.eq(test.Factor.nunique()).all():
         raise ValueError('统一选图的每组配置须包含相同的全部策略。')
-    ranking=ranking.sort_values(['MeanLSAnnual','Universe','Period'],ascending=[False,True,True]).reset_index(drop=True)
+    ranking=ranking.sort_values(['MeanLSTotal','Universe','Period'],ascending=[False,True,True]).reset_index(drop=True)
     ranking['SelectedForPlots']=ranking.index==0
     return ranking
 
@@ -1839,10 +1823,9 @@ def fixed_comparison(root=BASE/'results'):
                     b=bm[bm.Study.eq(study)&bm.Period.eq(period)&bm.Cost.eq('net')].iloc[0]
                     assert long.Days==b.Days
                     candidates[study].append({'Universe':universe,'Factor':factor,'Period':period,
-                        'AnnualReturn':long.AnnualReturn,'TotalReturn':long.TotalReturn,'Sharpe':long.Sharpe,
-                        'BenchmarkAnnual':b.AnnualReturn,'BenchmarkTotal':b.TotalReturn,
-                        'RelativeAnnual':(long.FinalNAV/b.FinalNAV)**(250/long.Days)-1,
-                        'RelativeTotal':long.FinalNAV/b.FinalNAV-1,'LSAnnual':ls.AnnualReturn,'LSTotal':ls.TotalReturn,
+                        'TotalReturn':long.TotalReturn,'Sharpe':long.Sharpe,
+                        'BenchmarkTotal':b.TotalReturn,
+                        'RelativeTotal':long.FinalNAV/b.FinalNAV-1,'LSTotal':ls.TotalReturn,
                         'LSSharpe':ls.Sharpe,'LSMaxDrawdown':ls.MaxDrawdown,
                         'LSAnnualVol':ls.AnnualVol,'IC':ls.IC,'ICIR':ls.ICIR,
                         'RankIC':ls.RankIC,'RankICIR':ls.RankICIR,
@@ -1855,7 +1838,7 @@ def fixed_comparison(root=BASE/'results'):
                     for i in range(1,6):
                         row=rows[rows.Portfolio.eq(f'Group{i}')].iloc[0]
                         deciles.append({'Study':study,'Universe':universe,'Factor':factor,'Period':period,'Group':6-i,'LedgerGroup':i,
-                                        'AnnualReturn':row.AnnualReturn,'TotalReturn':row.TotalReturn,'Sharpe':row.Sharpe})
+                                        'TotalReturn':row.TotalReturn,'Sharpe':row.Sharpe})
         for period in PERIODS:
             for cost in ['net','gross']:
                 frame=pd.read_csv(current/'benchmarks/test'/period/f'{cost}_ledger.csv',parse_dates=['TradingDay'])
@@ -1867,14 +1850,12 @@ def fixed_comparison(root=BASE/'results'):
     validation=pd.DataFrame(candidates['validation'])
     test=pd.DataFrame(candidates['test'])
     selected=choose_test_display_cases(test)
-    selected=selected.merge(validation[['Universe','Factor','Period','LSAnnual']].rename(columns={'LSAnnual':'SelectionLSAnnual'}),
-                            on=['Universe','Factor','Period'],validate='one_to_one')
-    selected['Selection']='2018 net long-short CAGR; retrospective table highlighting only'
+    selected['Selection']='2018 net long-short cumulative return; retrospective table highlighting only'
     ranking=rank_common_plot_configurations(test)
     ranking.to_csv(root/'plot_configurations.csv',index=False)
     plot_choice=ranking.iloc[0]
     test[test.Universe.eq(plot_choice.Universe)&test.Period.eq(plot_choice.Period)].to_csv(root/'plot_cases.csv',index=False)
-    comparison=validation.rename(columns={'LSAnnual':'ValidationLSAnnual'})[['Universe','Factor','Period','ValidationLSAnnual']].merge(test,on=['Universe','Factor','Period'],validate='one_to_one')
+    comparison=test.copy()
     comparison.to_csv(root/'universe_comparison.csv',index=False)
     validation.to_csv(root/'validation_candidates.csv',index=False)
     selected.to_csv(root/'selected_cases.csv',index=False)
@@ -1885,10 +1866,10 @@ def fixed_comparison(root=BASE/'results'):
     metadata={'protocol':EXECUTION_PROTOCOL,'model_protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
               'universes':UNIVERSE_FOLDERS,'candidate_factors':list(FACTORS),'groups':5,'round_trip_fee':.003,
               'test_refits':0,'selection_uses_test_returns':True,'selection_period':['2018-01-02','2018-12-28'],
-              'selection_metric':'2018 net long-short CAGR; retrospective display only',
+              'selection_metric':'2018 net long-short cumulative return; retrospective display only',
               'model_selection_uses_test_returns':False,'display_selection_uses_test_returns':True,
-              'plot_selection_metric':'equal mean of nine strategy 2018 net long-short CAGRs',
-              'nested_outer_searches':27,'final_searches':9,
+              'plot_selection_metric':'equal mean of nine strategy 2018 net long-short cumulative returns',
+              'nested_outer_searches':18,'final_searches':6,
               'short_policy':'unconstrained','inventory_verified':False,'annual_borrow_fee':0.0,
               'result_interpretation':'five groups; fixed-direction long Q1 short Q5; unconstrained theoretical shorts; zero borrowing and financing fees',
               'evaluation_focus':'long_short','training_label':'stock-level cross-section demeaned N-day open return',
@@ -1901,7 +1882,7 @@ def fixed_comparison(root=BASE/'results'):
 
 
 def run_universe_comparison(cfg,trials=96,finalists=16,reuse_frozen=False):
-    for index in ['300','500','all']:
+    for index in UNIVERSE_FOLDERS:
         current=replace(cfg,index=index,output_dir=Path(cfg.output_dir)/UNIVERSE_FOLDERS[index])
         marker=Path(current.output_dir)/'run_config.json'
         saved=json.loads(marker.read_text()) if marker.exists() else {}
@@ -2760,12 +2741,12 @@ def run_self_tests(output_dir=BASE / "results"):
                                'LSTotal':[.1,.1,.8,.5,.5,.2],'LSSharpe':[1,1,8,5,5,2]})
             ranking=rank_common_plot_configurations(rows)
             self.assertEqual(ranking.iloc[0].Universe,'500')
-            self.assertAlmostEqual(ranking.iloc[0].MeanLSAnnual,.4)
+            self.assertAlmostEqual(ranking.iloc[0].MeanLSTotal,.4)
             self.assertEqual(ranking.SelectedForPlots.sum(),1)
 
         def test_test_highlighting_is_explicitly_retrospective(self):
             rows=pd.DataFrame({'Factor':['a','a'],'Universe':['300','500'],'Period':['Weekly']*2,
-                               'LSAnnual':[.1,.2],'ValidationLSAnnual':[.8,.0]})
+                               'LSTotal':[.1,.2],'ValidationLSTotal':[.8,.0]})
             self.assertEqual(choose_test_display_cases(rows).iloc[0].Universe,'500')
 
         def test_frozen_model_weights_do_not_depend_on_2018_features(self):
@@ -2913,7 +2894,7 @@ def run_self_tests(output_dir=BASE / "results"):
     return result.testsRun
 
 
-# 同池全体等权基准、三池比较与事后选图
+# 同池全体等权基准、两池比较与事后选图
 def single_long_ledger(groups, schedule, market, cfg, name='PoolEqualWeight'):
     """用相同订单、持仓和费用引擎模拟一个多头组合；不读取未来可交易性。"""
     book = Portfolio(market.symbols, cfg, name)
@@ -2984,12 +2965,11 @@ def _render_report_contents():
     for name,digest in config['sources'].items():
         assert pipeline_file_hash(BASE/name)==digest,name
     comparison=pd.read_csv(R/'universe_comparison.csv',dtype={'Universe':str})
-    validation=pd.read_csv(R/'validation_candidates.csv',dtype={'Universe':str})
     selected=pd.read_csv(R/'selected_cases.csv',dtype={'Universe':str}).set_index('Factor').loc[[*FACTORS,'Pred_Score']].reset_index()
     expected=choose_test_display_cases(comparison)[['Factor','Universe','Period']].sort_values('Factor').reset_index(drop=True)
     actual=selected[['Factor','Universe','Period']].sort_values('Factor').reset_index(drop=True)
     pd.testing.assert_frame_equal(expected,actual)
-    assert len(comparison)==81 and len(selected)==9
+    assert len(comparison)==54 and len(selected)==9
     benchmark=pd.read_csv(R/'benchmark_summary.csv',dtype={'Universe':str})
     counters={'series':0,'trades':0,'ledger_rows':0,'short_entry_trades_checked':0}
     selections=[]
@@ -3120,8 +3100,8 @@ def _render_report_contents():
             parameters.append({'Universe':universe,'Period':period,'Days':days,
                                'MeanRankIC':best['inner_mean_rank_ic'],**best['parameters']})
             models.append({'Universe':universe,'Period':period,**metadata})
-    assert searches==36 and coarse_fits==3456 and fine_fits==1728 and len(outer_models)==27
-    assert counters['series']==1008
+    assert searches==24 and coarse_fits==2304 and fine_fits==1152 and len(outer_models)==18
+    assert counters['series']==672
     selection=pd.concat(selections,ignore_index=True)
     parameters=pd.DataFrame(parameters)
     selection.to_csv(R/'feature_selection_summary.csv',index=False)
@@ -3135,48 +3115,20 @@ def _render_report_contents():
     assert len(plot_cases)==9
     best_model=plot_cases[plot_cases.Factor.eq('Pred_Score')].iloc[0]
     model_pool=best_model.Universe
-    text=''
-    for factor in [*FACTORS,'Pred_Score']:
-        chosen=selected[selected.Factor.eq(factor)].iloc[0]
-        values=[]
-        for universe in ['300','500','all']:
-            candidate=comparison[comparison.Factor.eq(factor)&comparison.Universe.eq(universe)].sort_values('ValidationLSAnnual',ascending=False).iloc[0]
-            values.append(pct(candidate.LSTotal))
-        text+=line(tex[factor],*values,UNIVERSE_NAMES[chosen.Universe]+'/'+freq[chosen.Period])
-    table('universe_comparison',text)
-    text=''
-    for row in selected.itertuples(index=False):
-        text+=line(tex[row.Factor],UNIVERSE_NAMES[row.Universe]+'/'+freq[row.Period],pct(row.SelectionLSAnnual),
-                   pct(row.LSTotal),pct(row.LSAnnual),f'{row.LSSharpe:.2f}',pct(row.LSMaxDrawdown))
-    table('selected',text)
-    text=''
-    for row in selected.itertuples(index=False):
-        text+=line(tex[row.Factor],UNIVERSE_NAMES[row.Universe]+'/'+freq[row.Period],
-                   f'{row.RankIC:.4f}',f'{row.RankICIR:.2f}',f'{row.IC:.4f}',f'{row.ICIR:.2f}',int(row.RankICObservations))
-    table('rank_metrics',text)
-    text=''
-    for row in selected.itertuples(index=False):
-        text+=line(tex[row.Factor],pct(row.LSTotal),pct(row.LSAnnual),pct(row.LSAnnualVol),
-                   f'{row.LSSharpe:.2f}',pct(row.LSMaxDrawdown),pct(row.LSMeanDailyTurnover))
-    table('performance',text)
-    text=''
-    for row in selected.itertuples(index=False):
-        text+=line(tex[row.Factor],pct(row.LSMeanLongExposure),pct(row.LSMeanShortExposure),pct(row.LSMeanNetExposure))
-    table('exposures',text)
     complete=comparison.copy()
     chosen_keys=set(selected[['Factor','Universe','Period']].itertuples(index=False,name=None))
     complete['BestIn2018']=[(r.Factor,r.Universe,r.Period) in chosen_keys for r in complete.itertuples(index=False)]
     complete[['Factor','Universe','Period','IC','ICIR','RankIC','RankICIR','RankICObservations',
-              'LSTotal','LSAnnual','LSAnnualVol','LSSharpe','LSMaxDrawdown','LSMeanDailyTurnover',
-              'ValidationLSAnnual','BestIn2018']].to_csv(R/'factor_metrics.csv',index=False)
-    assert len(complete)==81 and complete.groupby('Factor').size().eq(9).all()
+              'LSTotal','LSAnnualVol','LSSharpe','LSMaxDrawdown','LSMeanDailyTurnover',
+              'BestIn2018']].to_csv(R/'factor_metrics.csv',index=False)
+    assert len(complete)==54 and complete.groupby('Factor').size().eq(6).all()
     assert complete.groupby('Factor').BestIn2018.sum().eq(1).all()
     panels=[]
     def number(value,digits=2):
         return f'{value:.{digits}f}' if np.isfinite(value) else '--'
     for i,factor in enumerate([*FACTORS,'Pred_Score']):
         candidates=complete[complete.Factor.eq(factor)].copy()
-        candidates['PoolOrder']=candidates.Universe.map({'300':0,'500':1,'all':2})
+        candidates['PoolOrder']=candidates.Universe.map({'300':0,'500':1})
         candidates['PeriodOrder']=candidates.Period.map({'Weekly':0,'BiWeekly':1,'Monthly':2})
         candidates=candidates.sort_values(['PoolOrder','PeriodOrder'])
         rank_rows=return_rows=''
@@ -3185,35 +3137,30 @@ def _render_report_contents():
                 return [r'\textbf{'+str(v)+'}' for v in values] if row.BestIn2018 else values
             rank_rows+=line(*marked([UNIVERSE_NAMES[row.Universe],PERIODS[row.Period],
                                     number(row.RankIC,4),number(row.RankICIR),number(row.IC,4),number(row.ICIR),
-                                    int(row.RankICObservations),pct(row.ValidationLSAnnual)]))
+                                    int(row.RankICObservations)]))
             return_rows+=line(*marked([UNIVERSE_NAMES[row.Universe],PERIODS[row.Period],pct(row.LSTotal),
-                                      pct(row.LSAnnual),pct(row.LSAnnualVol),number(row.LSSharpe),
+                                      pct(row.LSAnnualVol),number(row.LSSharpe),
                                       pct(row.LSMaxDrawdown),pct(row.LSMeanDailyTurnover)]))
         chosen=plot_cases[plot_cases.Factor.eq(factor)].iloc[0]
         panels.append(r'\clearpage'+'\n')
         if i==0:panels.append(r'\section{全部股票池与期限的2018结果}'+'\n')
         panels.append(r'\subsection{'+tex[factor]+'}\n')
-        panels.append('下列两表完整列出三池三期限，加粗该因子2018费后多空年化最高的配置。所有因子统一画图，配置按九项策略2018年化收益的等权平均确定；这是事后展示选择。\n')
+        panels.append('下列两表完整列出两池三期限，加粗该因子2018费后多空累计收益最高的配置。所有因子统一画图，配置按九项策略2018累计收益的等权平均确定；这是事后展示选择。\n')
         panels.append(r'\begin{table}[H]\centering\normalsize\setlength{\tabcolsep}{3.5pt}'+'\n'+
-                      r'\caption{'+tex[factor]+r'：全部九组配置的IC与RankIC}\begin{tabular}{llrrrrrr}\toprule'+'\n'+
-                      r'股票池 & 交易日 & RankIC & RankICIR & IC & ICIR & IC期数 & 2017验证年化\\\midrule'+'\n'+
+                      r'\caption{'+tex[factor]+r'：全部六组配置的IC与RankIC}\begin{tabular}{llrrrrr}\toprule'+'\n'+
+                      r'股票池 & 交易日 & RankIC & RankICIR & IC & ICIR & IC期数\\\midrule'+'\n'+
                       rank_rows+r'\bottomrule\end{tabular}\end{table}'+'\n')
         panels.append(r'\begin{table}[H]\centering\normalsize\setlength{\tabcolsep}{3.5pt}'+'\n'+
-                      r'\caption{'+tex[factor]+r'：全部九组配置的扣费后多空表现}\begin{tabular}{llrrrrrr}\toprule'+'\n'+
-                      r'股票池 & 交易日 & 2018累计 & 2018年化 & 年化波动 & 夏普 & 最大回撤 & 日均换手\\\midrule'+'\n'+
+                      r'\caption{'+tex[factor]+r'：全部六组配置的扣费后多空表现}\begin{tabular}{llrrrrr}\toprule'+'\n'+
+                      r'股票池 & 交易日 & 2018累计 & 年化波动 & 夏普 & 最大回撤 & 日均换手\\\midrule'+'\n'+
                       return_rows+r'\bottomrule\end{tabular}\end{table}'+'\n')
         filename='selected_model' if factor=='Pred_Score' else 'selected_'+factor
         caption=tex[factor]+'；股票池：'+UNIVERSE_NAMES[chosen.Universe]+'；调仓：'+freq[chosen.Period]
         panels.append(r'\clearpage'+'\n'+r'\resultfigure{'+filename+'}{'+caption+'}\n')
     (HERE/'strategy_results.tex').write_text(''.join(panels))
     text=''
-    for row in comparison[comparison.Factor.eq('Pred_Score')].sort_values(['Universe','Period']).itertuples(index=False):
-        text+=line(UNIVERSE_NAMES[row.Universe],freq[row.Period],pct(row.ValidationLSAnnual),pct(row.LSTotal),
-                   pct(row.LSAnnual),f'{row.LSSharpe:.2f}',pct(row.LSMaxDrawdown))
-    table('model',text)
-    text=''
     for factor in FACTORS:
-        counts=[int(selection[selection.Universe.eq(universe)&selection.Feature.eq(factor)].Selected.sum()) for universe in ['300','500','all']]
+        counts=[int(selection[selection.Universe.eq(universe)&selection.Feature.eq(factor)].Selected.sum()) for universe in UNIVERSE_FOLDERS]
         text+=line(tex[factor],*counts)
     table('selection',text)
     text=''
@@ -3262,7 +3209,7 @@ def _render_report_contents():
             record=pick(summary,factor,period,f'Group{group}')
             values.append(record.TotalReturn)
             selected_groups.append({'Factor':factor,'Universe':universe,'Period':period,'Group':6-group,'LedgerGroup':group,
-                                    'TotalReturn':record.TotalReturn,'AnnualReturn':record.AnnualReturn,'Sharpe':record.Sharpe})
+                                    'TotalReturn':record.TotalReturn,'Sharpe':record.Sharpe})
         values=np.asarray(values)
         baseline=pd.Timestamp('2017-12-29')
         fig,axes=plt.subplots(2,1,figsize=(8.4,7.2),gridspec_kw={'height_ratios':[1.3,1]})
@@ -3310,13 +3257,13 @@ def _render_report_contents():
     tests=int(re.search(r'Ran (\d+) tests',log).group(1))
     assert '\nOK' in log
     macros={'Searches':searches,'CVFits':coarse_fits+fine_fits,'CoarseFits':coarse_fits,'FineFits':fine_fits,
-            'Models':9,'ValidationModels':27,'Series':f'{counters["series"]:,}','Trades':f'{counters["trades"]:,}','Tests':tests,
+            'Models':6,'ValidationModels':18,'Series':f'{counters["series"]:,}','Trades':f'{counters["trades"]:,}','Tests':tests,
             'BestModelPool':UNIVERSE_NAMES[model_pool],'BestModelPeriod':freq[best_model.Period],
-            'BestModelValidation':pct(best_model.ValidationLSAnnual),'BestModelLS':pct(best_model.LSTotal),
-            'BestModelLSAnnual':pct(best_model.LSAnnual),'BestModelLSSharpe':f'{best_model.LSSharpe:.2f}',
+            'BestModelLS':pct(best_model.LSTotal),
+            'BestModelLSSharpe':f'{best_model.LSSharpe:.2f}',
             'BestModelLSDrawdown':pct(best_model.LSMaxDrawdown),
             'PlotPool':UNIVERSE_NAMES[plot_choice.Universe],'PlotPeriod':freq[plot_choice.Period],
-            'PlotMeanAnnual':pct(plot_choice.MeanLSAnnual)}
+            'PlotMeanTotal':pct(plot_choice.MeanLSTotal)}
     (HERE/'values.tex').write_text('\n'.join('\\newcommand{\\'+name+'}{'+str(value)+'}' for name,value in macros.items())+'\n')
     template=(HERE/'template.tex').read_text()
     for path in (HERE/'tables').glob('*.tex'):
@@ -3325,14 +3272,14 @@ def _render_report_contents():
         else:path.unlink()
     (HERE/'report_ready.tex').write_text(template)
     receipt={**counters,'protocol':EXECUTION_PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
-             'evaluation_focus':'long_short','selection_metric':'2018 net long-short CAGR; retrospective display only',
+             'evaluation_focus':'long_short','selection_metric':'2018 net long-short cumulative return; retrospective display only',
              'test_refits':0,'display_selection_uses_test_returns':True,'model_selection_uses_test_returns':False,'tests_passed':tests,'groups':5,
-             'final_models':9,'training_validation_models':27,'searches':searches,'cv_fits':coarse_fits+fine_fits,
-             'benchmark_ledgers_checked':36,'active_factor_count':8,'cdpp_excluded':True,'borrowing_fee':0,'financing_fee':0,'round_trip_fee':.003,'time_boundaries_checked':True,
-             'complete_strategy_configurations_reported':81,'configurations_per_strategy':9,'bold_selection_basis':'2018 net long-short CAGR',
+             'final_models':6,'training_validation_models':18,'searches':searches,'cv_fits':coarse_fits+fine_fits,
+             'benchmark_ledgers_checked':24,'active_factor_count':8,'cdpp_excluded':True,'borrowing_fee':0,'financing_fee':0,'round_trip_fee':.003,'time_boundaries_checked':True,
+             'complete_strategy_configurations_reported':54,'configurations_per_strategy':6,'bold_selection_basis':'2018 net long-short cumulative return',
              'common_plot_universe':plot_choice.Universe,'common_plot_period':plot_choice.Period,
-             'common_plot_metric':'mean 2018 net long-short CAGR across 9 strategies',
-             'nested_parameter_availability_checked':True,'outer_searches':27,'final_searches':9,
+             'common_plot_metric':'mean 2018 net long-short cumulative return across 9 strategies',
+             'nested_parameter_availability_checked':True,'outer_searches':18,'final_searches':6,
              'short_policy':'unconstrained','historical_inventory_supplied':False,'long_short_direction':'long Q1 minus short Q5; signed returns',
              'executable_sharpe_established':False,'short_entry_valid_quotes_checked':True,'short_constraints_enabled':False,'absolute_returns_used':False,
              'model_hashes_checked':True,'selected_correlations_checked':True,'quintile_bar_figures':9,
@@ -3374,8 +3321,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--data-dir', type=Path, default=BASE / 'data')
     parser.add_argument('--output-dir', type=Path, default=BASE / 'results')
-    parser.add_argument('--universe', choices=['300', '500', 'all'], default='500')
-    parser.add_argument('--compare-universes', action='store_true', help='同口径完成三池实验并比较结果')
+    parser.add_argument('--universe', choices=['300', '500'], default='500')
+    parser.add_argument('--compare-universes', action='store_true', help='同口径完成两池实验并比较结果')
     parser.add_argument('--with-xgboost', action='store_true', help='完整执行训练期筛选和调参')
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--short-policy',choices=['unconstrained','opening_price','verified_inventory'],default='unconstrained')
@@ -3403,7 +3350,7 @@ def main():
                  short_inventory=args.short_inventory,initial_capital=args.initial_capital,annual_borrow_fee=args.annual_borrow_fee)
     if args.compare_universes:
         if cfg.short_policy!='unconstrained' or cfg.annual_borrow_fee!=0:
-            raise ValueError('三池主比较固定为五分组、无约束空头、借券费0假设；主报告不执行成本情景比较。')
+            raise ValueError('两池主比较固定为五分组、无约束空头、借券费0假设；主报告不执行成本情景比较。')
         run_universe_comparison(cfg, args.trials, args.finalists,args.reuse_frozen_models)
         return
     cfg = replace(cfg, output_dir=Path(cfg.output_dir) / UNIVERSE_FOLDERS[cfg.index])
