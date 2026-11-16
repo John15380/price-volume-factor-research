@@ -1,5 +1,5 @@
 {
-  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
   "training": [
     "2016-01-01",
     "2017-12-31"
@@ -32,7 +32,9 @@
     "2017-01-03",
     "2017-09-29"
   ],
-  "selection_metric": "chronological training-validation net long-short CAGR",
+  "selection_metric": "nested chronological validation net long-short CAGR",
+  "nested_outer_searches": 27,
+  "final_searches": 9,
   "evaluation_focus": "long_short",
   "training_label": "stock-level cross-section demeaned N-day open return",
   "training_objective": "reg:squarederror",
@@ -46,6 +48,6 @@
     20
   ],
   "sources": {
-    "code2_new.py": "6c3313e2cd792f17ea0123787824c99e681667a28888fd573da16263bca81baf"
+    "code2_new.py": "c9055948f4e957aab27c6534854368e87ad947f0ca4180c0c53b87a13af11621"
   }
 }

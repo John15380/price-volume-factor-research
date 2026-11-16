@@ -67,10 +67,13 @@ test_index_membership_routes_to_correct_historical_file (__main__.run_self_tests
 test_single_long_matches_group_book_with_fees_and_blocked_orders (__main__.run_self_tests.<locals>.BenchmarkTests.test_single_long_matches_group_book_with_fees_and_blocked_orders) ... ok
 test_actual_quarter_validation_purges_unrealized_labels (__main__.run_self_tests.<locals>.FixedProtocolTests.test_actual_quarter_validation_purges_unrealized_labels) ... ok
 test_frozen_model_weights_do_not_depend_on_2018_features (__main__.run_self_tests.<locals>.FixedProtocolTests.test_frozen_model_weights_do_not_depend_on_2018_features) ... ok
+test_later_2017_prices_cannot_change_q1_parameters_or_predictions (__main__.run_self_tests.<locals>.FixedProtocolTests.test_later_2017_prices_cannot_change_q1_parameters_or_predictions) ... ok
+test_nested_search_only_sees_labels_realized_by_seed (__main__.run_self_tests.<locals>.FixedProtocolTests.test_nested_search_only_sees_labels_realized_by_seed) ... ok
 test_pool_selection_uses_validation_long_short_instead_of_long_or_test (__main__.run_self_tests.<locals>.FixedProtocolTests.test_pool_selection_uses_validation_long_short_instead_of_long_or_test) ... ok
+test_prediction_rejects_parameters_selected_after_signal (__main__.run_self_tests.<locals>.FixedProtocolTests.test_prediction_rejects_parameters_selected_after_signal) ... ok
 test_training_ends_before_2018_and_future_features_cannot_change_it (__main__.run_self_tests.<locals>.FixedProtocolTests.test_training_ends_before_2018_and_future_features_cannot_change_it) ... ok
 
 ----------------------------------------------------------------------
-Ran 71 tests in 5.224s
+Ran 74 tests in 13.444s
 
 OK

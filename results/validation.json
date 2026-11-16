@@ -1,8 +1,8 @@
 {
   "series": 2016,
-  "trades": 12592543,
+  "trades": 12594438,
   "ledger_rows": 430416,
-  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
   "training": [
     "2016-01-01",
     "2017-12-31"
@@ -12,18 +12,21 @@
     "2018-12-28"
   ],
   "evaluation_focus": "long_short",
-  "selection_metric": "training-validation net long-short CAGR",
+  "selection_metric": "nested chronological validation net long-short CAGR",
   "test_refits": 0,
   "selection_uses_test_returns": false,
-  "tests_passed": 71,
+  "tests_passed": 74,
   "groups": 10,
   "final_models": 9,
   "training_validation_models": 27,
-  "searches": 9,
-  "cv_fits": 1296,
+  "searches": 36,
+  "cv_fits": 5184,
   "benchmark_ledgers_checked": 36,
   "round_trip_fee": 0.003,
   "time_boundaries_checked": true,
+  "nested_parameter_availability_checked": true,
+  "outer_searches": 27,
+  "final_searches": 9,
   "model_hashes_checked": true,
   "selected_correlations_checked": true,
   "decile_bar_figures": 10,
@@ -33,25 +36,6 @@
   "execution_lag_trading_days": 1,
   "additional_feature_lag": 0,
   "sources": {
-    "code2_new.py": "6c3313e2cd792f17ea0123787824c99e681667a28888fd573da16263bca81baf"
-  },
-  "delivery": {
-    "pages": 21,
-    "pdf_sha256": "1b167535a7326819788df72928ae92546ce0c520138a0674a99263b050867498",
-    "all_pages_rendered": true,
-    "all_pages_visually_reviewed": true,
-    "full_page_reviews": [
-      6,
-      11
-    ],
-    "combined_groups_and_ls_on_same_axes": true,
-    "ten_decile_bar_figures": 10,
-    "all_100_bar_values_checked_against_ledgers": true,
-    "embedded_source_hash_checked": true,
-    "table2_body_size_pt": 10.5,
-    "original_fonts_preserved": true,
-    "weights_predictions_and_raw_test_summaries_unchanged_from_v8": true,
-    "overfull_boxes": 0,
-    "missing_glyphs": 0
+    "code2_new.py": "c9055948f4e957aab27c6534854368e87ad947f0ca4180c0c53b87a13af11621"
   }
 }

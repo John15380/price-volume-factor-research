@@ -1,0 +1,29 @@
+{
+  "parameters": {
+    "max_depth": 3,
+    "learning_rate": 0.125934033956709,
+    "min_child_weight": 100.0,
+    "subsample": 0.7246003696547273,
+    "colsample_bytree": 0.7464465069095764,
+    "reg_alpha": 0.0,
+    "reg_lambda": 0.19757329152853548,
+    "gamma": 0.0019190068178350137,
+    "max_bin": 256,
+    "corr_threshold": 0.8,
+    "max_features": 4,
+    "n_estimators": 6
+  },
+  "winner_trial": 25,
+  "inner_mean_rank_ic": 0.12639865435490275,
+  "inner_rank_ic_std": 0.014863989655778738,
+  "selection_score": 0.12491225538932488,
+  "candidates": 96,
+  "finalists": 16,
+  "cv_fits": 144,
+  "max_training_label_end": "2017-03-31 00:00:00",
+  "validation_folds": 3,
+  "screening_tree_cap": 300,
+  "final_tree_cap": 1200,
+  "early_stop_metric": "validation weighted RMSE",
+  "search_metric": "mean validation daily RankIC - 0.1 * std across 3 chronological folds"
+}

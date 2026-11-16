@@ -1,5 +1,5 @@
 {
-  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
   "horizon": 20,
   "training_start": "2016-01-01",
   "training_end": "2017-12-31",
@@ -36,6 +36,9 @@
   "validation_folds": 3,
   "validation_refits": 3,
   "final_fits": 1,
+  "outer_validation": "quarterly nested chronological search; all labels realized by seed signal",
+  "searches": 4,
+  "parameter_as_of": "2017-12-29",
   "test_refits": 0,
   "test_early_stopping": false,
   "model_sha256": "4f3ef0455cd01dd1b4bd1bfbebe2473af18241de218fffa0a8c8270701943d63",

@@ -1402,7 +1402,7 @@ TRAIN_START = pd.Timestamp('2016-01-01')
 TEST_START = pd.Timestamp('2018-01-01')
 VALIDATION_START = pd.Timestamp('2017-01-01')
 VALIDATION_END = pd.Timestamp('2017-09-30')
-PROTOCOL = 'fixed_train_2016_2017_test_2018_v1'
+PROTOCOL = 'fixed_train_2016_2017_test_2018_nested_v2'
 
 
 def fixed_training_sample(features, training_market, days):
@@ -1443,42 +1443,76 @@ def fixed_fit(train,parameters):
     return model,chosen,decisions,corr
 
 
+def fixed_outer_history(train, seed):
+    """季度种子信号收盘时可知的历史；调参、早停、去重和拟合共用此边界。"""
+    past=train[train.TradingDay.le(seed)&train.LabelEnd.le(seed)].copy()
+    assert past.LabelEnd.max()<=seed and past.TradingDay.max()<=seed
+    return past
+
+
+def fixed_predict(model, chosen, sample, parameter_as_of, selection_end, training_end):
+    """保存预测的信息边界；TradingDay即信号日，不按未来标签可得性筛股票。"""
+    assert selection_end<=parameter_as_of and training_end<=parameter_as_of
+    assert sample.TradingDay.min()>=parameter_as_of
+    pred=sample[KEYS].copy()
+    pred['Pred_Score']=model.predict(sample[chosen].astype('float32'))
+    pred.loc[sample[chosen].notna().sum(axis=1).to_numpy()==0,'Pred_Score']=np.nan
+    pred['ParameterAsOf']=parameter_as_of
+    pred['SelectionMaxLabelEnd']=selection_end
+    pred['TrainMaxLabelEnd']=training_end
+    return pred
+
+
 def fixed_model(features,training_market,days,destination,trials=96,finalists=16):
     destination=Path(destination)
     destination.mkdir(parents=True,exist_ok=True)
     train,history=fixed_training_sample(features,training_market,days)
     folds=fixed_validation_folds(train)
     LOG.info('%d日固定模型：2016--2017标签已实现样本%d行，%d候选/%d晋级',days,len(train),trials,finalists)
-    best=tuning_tune(train,list(FACTORS),destination/'tuning',trials,finalists,
-                     TUNING_SEED+days*100+2017,folds=folds)
     forecasts=[]
     fold_meta=[]
-    for fold,((tr,va),start,end) in enumerate(zip(folds,
+    for fold,((_,va),start,end) in enumerate(zip(folds,
             ['2017-01-01','2017-04-01','2017-07-01'],['2017-03-31','2017-06-30','2017-09-30'])):
         first=training_market.dates.searchsorted(pd.Timestamp(start))
         seed=training_market.dates[first-1]
+        tr=fixed_outer_history(train,seed)
+        inner=tuning_purged_folds(tr)
+        selection_end=max(v.LabelEnd.max() for _,v in inner)
+        assert selection_end<=seed
+        outer=destination/'outer_validation'/f'Q{fold+1}'
+        # 每一外层季度单独在当时已实现的历史内选参。最终2018参数不得回填到这里。
+        best_outer=tuning_tune(tr,list(FACTORS),outer/'tuning',trials,finalists,
+                              TUNING_SEED+days*100+2017,folds=inner)
         sample=history[history.TradingDay.between(seed,pd.Timestamp(end))].copy()
-        model,chosen,decisions,corr=fixed_fit(tr,best['parameters'])
-        pred=sample[KEYS].copy()
-        pred['Pred_Score']=model.predict(sample[chosen].astype('float32'))
-        pred.loc[sample[chosen].notna().sum(axis=1).to_numpy()==0,'Pred_Score']=np.nan
+        model,chosen,decisions,corr=fixed_fit(tr,best_outer['parameters'])
+        model.save_model(outer/'model.json')
+        decisions.to_csv(outer/'feature_selection.csv',index=False)
+        corr.to_csv(outer/'training_correlation.csv')
+        pred=fixed_predict(model,chosen,sample,seed,selection_end,tr.LabelEnd.max())
         forecasts.append(pred)
         fold_meta.append({'Fold':fold,'TrainStart':str(tr.TradingDay.min().date()),
                           'TrainMaxLabelEnd':str(tr.LabelEnd.max().date()),'ValidationStart':start,
-                          'ValidationEnd':end,'SeedSignal':str(seed.date()),'Features':'|'.join(chosen)})
+                          'ValidationEnd':end,'SeedSignal':str(seed.date()),
+                          'ParameterAsOf':str(seed.date()),'SelectionMaxLabelEnd':str(selection_end.date()),
+                          'Features':'|'.join(chosen),'Trees':best_outer['parameters']['n_estimators'],
+                          'Parameters':json.dumps(best_outer['parameters'],sort_keys=True),
+                          'ModelSHA256':pipeline_file_hash(outer/'model.json')})
+        LOG.info('%d日外层Q%d完成：参数/标签截止%s，%d棵树',days,fold+1,seed.date(),
+                 best_outer['parameters']['n_estimators'])
     validation=pd.concat(forecasts,ignore_index=True).drop_duplicates(KEYS,keep='last').sort_values(KEYS)
     validation.to_parquet(destination/'validation_predictions.parquet',index=False)
     pd.DataFrame(fold_meta).to_csv(destination/'validation_refits.csv',index=False)
     # 所有选型结束后用2016--2017完整已实现样本拟合一次；2018不重训、不早停。
+    # 此次三季度搜索在2017年末才做，仅服务2018最终模型，不能生成此前外层预测。
+    best=tuning_tune(train,list(FACTORS),destination/'tuning',trials,finalists,
+                     TUNING_SEED+days*100+2017,folds=folds)
     model,chosen,decisions,corr=fixed_fit(train,best['parameters'])
     model_path=destination/'model.json'
     model.save_model(model_path)
     frozen_hash=pipeline_file_hash(model_path)
     test_seed=training_market.dates[-1]
     sample=features[features.TradingDay.ge(test_seed)&features[list(FACTORS)].notna().sum(axis=1).ge(3)].copy()
-    pred=sample[KEYS].copy()
-    pred['Pred_Score']=model.predict(sample[chosen].astype('float32'))
-    pred.loc[sample[chosen].notna().sum(axis=1).to_numpy()==0,'Pred_Score']=np.nan
+    pred=fixed_predict(model,chosen,sample,test_seed,max(v.LabelEnd.max() for _,v in folds),train.LabelEnd.max())
     assert pipeline_file_hash(model_path)==frozen_hash
     pred.to_parquet(destination/'test_predictions.parquet',index=False)
     decisions['TrainMaxLabelEnd']=train.LabelEnd.max()
@@ -1491,6 +1525,8 @@ def fixed_model(features,training_market,days,destination,trials=96,finalists=16
               'max_training_label_end':str(train.LabelEnd.max().date()),'test_seed_signal':str(test_seed.date()),
               'test_start':'2018-01-02','test_end':'2018-12-28','selected_features':chosen,
               'parameters':best['parameters'],'validation_folds':3,'validation_refits':3,'final_fits':1,
+              'outer_validation':'quarterly nested chronological search; all labels realized by seed signal',
+              'searches':4,'parameter_as_of':str(test_seed.date()),
               'test_refits':0,'test_early_stopping':False,'model_sha256':frozen_hash,
               'xgboost_version':xgboost.__version__,'validation_prediction_rows':len(validation),'test_prediction_rows':len(pred)}
     (destination/'model_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
@@ -1559,7 +1595,8 @@ def fixed_pool(cfg,trials=96,finalists=16):
     metadata={'protocol':PROTOCOL,'universe':cfg.index,'training':['2016-01-01','2017-12-31'],
               'test':['2018-01-02','2018-12-28'],'selection_validation':['2017-01-03','2017-09-29'],
               'groups':10,'candidate_factors':list(FACTORS),'one_way_fee':.0015,'round_trip_fee':.003,
-              'trials':trials,'finalists':finalists,'test_refits':0,'sources':{Path(__file__).name:pipeline_file_hash(__file__)}}
+              'trials':trials,'finalists':finalists,'test_refits':0,'nested_outer_searches':9,
+              'final_searches':3,'sources':{Path(__file__).name:pipeline_file_hash(__file__)}}
     (root/'run_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
     LOG.info('%s固定实验完成：2016--2017训练，2018回测',UNIVERSE_NAMES[cfg.index])
 
@@ -1629,7 +1666,8 @@ def fixed_comparison(root=BASE/'results'):
     metadata={'protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
               'universes':UNIVERSE_FOLDERS,'candidate_factors':list(FACTORS),'groups':10,'round_trip_fee':.003,
               'test_refits':0,'selection_uses_test_returns':False,'selection_period':['2017-01-03','2017-09-29'],
-              'selection_metric':'chronological training-validation net long-short CAGR',
+              'selection_metric':'nested chronological validation net long-short CAGR',
+              'nested_outer_searches':27,'final_searches':9,
               'evaluation_focus':'long_short','training_label':'stock-level cross-section demeaned N-day open return',
               'training_objective':'reg:squarederror','early_stopping_metric':'validation weighted RMSE',
               'hyperparameter_metric':'mean validation daily RankIC - 0.1 * fold standard deviation',
@@ -1643,7 +1681,9 @@ def run_universe_comparison(cfg,trials=96,finalists=16):
     for index in ['300','500','all']:
         current=replace(cfg,index=index,output_dir=Path(cfg.output_dir)/UNIVERSE_FOLDERS[index])
         marker=Path(current.output_dir)/'run_config.json'
-        ready=marker.exists() and json.loads(marker.read_text()).get('protocol')==PROTOCOL
+        saved=json.loads(marker.read_text()) if marker.exists() else {}
+        ready=(saved.get('protocol')==PROTOCOL and
+               saved.get('sources',{}).get(Path(__file__).name)==pipeline_file_hash(__file__))
         if not ready:
             fixed_pool(current,trials,finalists)
         else:
@@ -1655,7 +1695,7 @@ def run_universe_comparison(cfg,trials=96,finalists=16):
 
 
 def run_self_tests(output_dir=BASE / "results"):
-    """运行71项因子、账本、冻结训练与基准一致性测试。"""
+    """运行因子、账本、嵌套验证、冻结训练与基准一致性测试。"""
     import io
     import unittest
     import numpy as np
@@ -2416,6 +2456,52 @@ def run_self_tests(output_dir=BASE / "results"):
                 self.assertGreaterEqual(va.TradingDay.min(),pd.Timestamp(start))
                 self.assertLess(va.LabelEnd.max(),TEST_START)
 
+        def test_nested_search_only_sees_labels_realized_by_seed(self):
+            features,market=self.fixture()
+            train,_=fixed_training_sample(features,market,20)
+            for seed in pd.to_datetime(['2016-12-30','2017-03-31','2017-06-30']):
+                past=fixed_outer_history(train,seed)
+                self.assertLessEqual(past.LabelEnd.max(),seed)
+                for tr,va in tuning_purged_folds(past):
+                    self.assertLess(tr.LabelEnd.max(),va.TradingDay.min())
+                    self.assertLessEqual(va.LabelEnd.max(),seed)
+
+        def test_later_2017_prices_cannot_change_q1_parameters_or_predictions(self):
+            # 使用真实搜索、早停、因子筛选和拟合路径，不能用固定参数的假模型替代。
+            features,market=self.fixture()
+            with tempfile.TemporaryDirectory() as directory:
+                baseline=Path(directory)/'baseline'
+                fixed_model(features,market,5,baseline,trials=12,finalists=4)
+                first=pd.read_parquet(baseline/'validation_predictions.parquet')
+                for cutoff in ['2017-01-03','2017-07-03']:
+                    changed=replace(market,open=market.open.copy(),close=market.close.copy())
+                    future=changed.dates>=cutoff
+                    multiplier=np.linspace(.5,2,future.sum())[:,None]*np.linspace(.8,1.2,30)[None,:]
+                    changed.open[future]*=multiplier
+                    changed.close[future]*=multiplier
+                    # 第一季度的可知训练表必须逐项不变。
+                    a,_=fixed_training_sample(features,market,5)
+                    b,_=fixed_training_sample(features,changed,5)
+                    pd.testing.assert_frame_equal(fixed_outer_history(a,pd.Timestamp('2016-12-30')),
+                                                  fixed_outer_history(b,pd.Timestamp('2016-12-30')))
+                    destination=Path(directory)/cutoff
+                    fixed_model(features,changed,5,destination,trials=12,finalists=4)
+                    for name in ['model.json','feature_selection.csv','training_correlation.csv',
+                                 'tuning/best_parameters.json','tuning/search_summary.csv','tuning/splits.csv']:
+                        self.assertEqual(pipeline_file_hash(baseline/'outer_validation/Q1'/name),
+                                         pipeline_file_hash(destination/'outer_validation/Q1'/name),name)
+                    second=pd.read_parquet(destination/'validation_predictions.parquet')
+                    # 3月31日为下一季度模型的种子信号，按模型实际可知时点归属下一折。
+                    mask=first.TradingDay.lt('2017-03-31')
+                    pd.testing.assert_frame_equal(first.loc[mask].reset_index(drop=True),
+                                                  second.loc[mask].reset_index(drop=True))
+
+        def test_prediction_rejects_parameters_selected_after_signal(self):
+            sample=pd.DataFrame({'TradingDay':[pd.Timestamp('2017-01-03')],'SecuCode':['000001']})
+            with self.assertRaises(AssertionError):
+                fixed_predict(None,[],sample,pd.Timestamp('2017-07-01'),
+                              pd.Timestamp('2017-06-30'),pd.Timestamp('2016-12-30'))
+
         def test_pool_selection_uses_validation_long_short_instead_of_long_or_test(self):
             rows=pd.DataFrame({'Factor':['a','a','b','b'],'Universe':['300','500','300','all'],
                                'Period':['Weekly']*4,'LSAnnual':[.2,.1,-.1,.05],
@@ -2537,6 +2623,7 @@ def _render_report_contents():
     selections=[]
     models=[]
     parameters=[]
+    outer_models=[]
     searches=coarse_fits=fine_fits=0
     summaries={}
 
@@ -2549,6 +2636,20 @@ def _render_report_contents():
         fig.savefig(HERE/'figures'/f'{name}.pdf',bbox_inches='tight')
         fig.savefig(HERE/'figures'/f'{name}.png',bbox_inches='tight',dpi=150)
         plt.close(fig)
+    def check_search(tuning,as_of):
+        nonlocal searches,coarse_fits,fine_fits
+        best=json.loads((tuning/'best_parameters.json').read_text())
+        coarse=pd.read_csv(tuning/'coarse_trials.csv')
+        fine=pd.read_csv(tuning/'fine_trials.csv')
+        splits=pd.read_csv(tuning/'splits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationMaxLabelEnd'])
+        assert len(coarse)==96 and len(fine)==48 and fine.Fold.nunique()==3
+        assert splits.TrainMaxLabelEnd.lt(splits.ValidationStart).all()
+        assert splits.ValidationMaxLabelEnd.le(as_of).all()
+        assert pd.Timestamp(best['max_training_label_end'])<=as_of
+        searches+=1
+        coarse_fits+=len(coarse)
+        fine_fits+=len(fine)
+        return best
     def check(ledger,trades,fee,summary=None,factor=None,period=None):
         np.testing.assert_allclose(trades.Cost,trades.Notional*fee,atol=1e-12)
         for portfolio,frame in ledger.groupby('Portfolio'):
@@ -2596,9 +2697,26 @@ def _render_report_contents():
             assert metadata['protocol']==PROTOCOL and metadata['test_refits']==0 and not metadata['test_early_stopping']
             assert pd.Timestamp(metadata['max_training_label_end'])<TEST_START
             assert pipeline_file_hash(folder/'model.json')==metadata['model_sha256']
-            folds=pd.read_csv(folder/'validation_refits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationEnd'])
+            folds=pd.read_csv(folder/'validation_refits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationEnd',
+                                                                       'SeedSignal','ParameterAsOf','SelectionMaxLabelEnd'])
             assert len(folds)==3 and folds.TrainMaxLabelEnd.lt(folds.ValidationStart).all()
             assert folds.ValidationEnd.lt(TEST_START).all()
+            assert folds.ParameterAsOf.eq(folds.SeedSignal).all()
+            assert folds.TrainMaxLabelEnd.le(folds.ParameterAsOf).all()
+            assert folds.SelectionMaxLabelEnd.le(folds.ParameterAsOf).all()
+            predictions=pd.read_parquet(folder/'validation_predictions.parquet')
+            assert predictions.ParameterAsOf.le(predictions.TradingDay).all()
+            assert predictions.SelectionMaxLabelEnd.le(predictions.ParameterAsOf).all()
+            assert predictions.TrainMaxLabelEnd.le(predictions.ParameterAsOf).all()
+            for row in folds.itertuples(index=False):
+                outer=folder/'outer_validation'/f'Q{row.Fold+1}'
+                assert pipeline_file_hash(outer/'model.json')==row.ModelSHA256
+                nested_best=check_search(outer/'tuning',row.ParameterAsOf)
+                assert nested_best['parameters']==json.loads(row.Parameters)
+                assert nested_best['parameters']['n_estimators']==row.Trees
+                decisions=pd.read_csv(outer/'feature_selection.csv')
+                assert '|'.join(decisions.loc[decisions.Selected,'Feature'])==row.Features
+                outer_models.append({'Universe':universe,'Period':period,**row._asdict()})
             selected_features=pd.read_csv(folder/'feature_selection.csv',parse_dates=['TrainMaxLabelEnd'])
             assert selected_features.TrainMaxLabelEnd.lt(TEST_START).all()
             selected_features['Universe']=universe
@@ -2610,26 +2728,17 @@ def _render_report_contents():
             for a in kept:
                 for b in kept:
                     if a!=b:assert abs(corr.loc[a,b])<selected_features.CorrelationThreshold.iloc[0]+1e-12
-            tuning=folder/'tuning'
-            best=json.loads((tuning/'best_parameters.json').read_text())
-            coarse=pd.read_csv(tuning/'coarse_trials.csv')
-            fine=pd.read_csv(tuning/'fine_trials.csv')
-            splits=pd.read_csv(tuning/'splits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationMaxLabelEnd'])
-            assert len(coarse)==96 and len(fine)==48 and fine.Fold.nunique()==3
-            assert splits.TrainMaxLabelEnd.lt(splits.ValidationStart).all() and splits.ValidationMaxLabelEnd.lt(TEST_START).all()
-            assert pd.Timestamp(best['max_training_label_end'])<TEST_START
+            best=check_search(folder/'tuning',pd.Timestamp(metadata['test_seed_signal']))
             parameters.append({'Universe':universe,'Period':period,'Days':days,
                                'MeanRankIC':best['inner_mean_rank_ic'],**best['parameters']})
             models.append({'Universe':universe,'Period':period,**metadata})
-            searches+=1
-            coarse_fits+=len(coarse)
-            fine_fits+=len(fine)
-    assert searches==9 and coarse_fits==864 and fine_fits==432
+    assert searches==36 and coarse_fits==3456 and fine_fits==1728 and len(outer_models)==27
     assert counters['series']==2016
     selection=pd.concat(selections,ignore_index=True)
     parameters=pd.DataFrame(parameters)
     selection.to_csv(R/'feature_selection_summary.csv',index=False)
     parameters.to_csv(R/'best_parameters.csv',index=False)
+    pd.DataFrame(outer_models).to_csv(R/'outer_validation_summary.csv',index=False)
     pd.DataFrame([{k:v for k,v in row.items() if not isinstance(v,(list,dict))} for row in models]).to_csv(R/'training_summary.csv',index=False)
     best_model=selected[selected.Factor.eq('Pred_Score')].iloc[0]
     model_pool=best_model.Universe
@@ -2771,10 +2880,11 @@ def _render_report_contents():
         else:path.unlink()
     (HERE/'report_ready.tex').write_text(template)
     receipt={**counters,'protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
-             'evaluation_focus':'long_short','selection_metric':'training-validation net long-short CAGR',
+             'evaluation_focus':'long_short','selection_metric':'nested chronological validation net long-short CAGR',
              'test_refits':0,'selection_uses_test_returns':False,'tests_passed':tests,'groups':10,
              'final_models':9,'training_validation_models':27,'searches':searches,'cv_fits':coarse_fits+fine_fits,
              'benchmark_ledgers_checked':36,'round_trip_fee':.003,'time_boundaries_checked':True,
+             'nested_parameter_availability_checked':True,'outer_searches':27,'final_searches':9,
              'model_hashes_checked':True,'selected_correlations_checked':True,'decile_bar_figures':10,
              'combined_decile_and_long_short_nav_figures':10,
              'training_objective':'reg:squarederror','hyperparameter_metric':'RankIC stability',
@@ -2816,7 +2926,7 @@ def main():
     parser.add_argument('--compare-universes', action='store_true', help='同口径完成三池实验并比较结果')
     parser.add_argument('--with-xgboost', action='store_true', help='完整执行训练期筛选和调参')
     parser.add_argument('--prepare-only', action='store_true')
-    parser.add_argument('--self-test', action='store_true', help='运行内置71项自动测试')
+    parser.add_argument('--self-test', action='store_true', help='运行内置自动测试（含未来季度反事实检查）')
     parser.add_argument('--report', action='store_true', help='核验结果并生成根目录report.pdf')
     parser.add_argument('--trials', type=int, default=96)
     parser.add_argument('--finalists', type=int, default=16)
