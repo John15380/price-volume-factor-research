@@ -85,6 +85,6 @@ test_verified_inventory_clips_partial_new_borrow (__main__.run_self_tests.<local
 test_verified_mode_requires_actual_inventory_file (__main__.run_self_tests.<locals>.ShortExecutionTests.test_verified_mode_requires_actual_inventory_file) ... ok
 
 ----------------------------------------------------------------------
-Ran 85 tests in 16.896s
+Ran 85 tests in 13.308s
 
 OK

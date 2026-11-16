@@ -307,6 +307,24 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 当前主结果仍未纳入真实券源、保证金、融资成本、订单队列、冲击及容量验证；模型现金也未分为信用账户可用、担保及受限融券卖出款。价格压力测试未解决全部交易可实现性问题。时间因果性、数值一致性和交易可实现性须分别评价。
 
 \clearpage
+\subsection{CDPDP与CDPDP$^{\prime}$重新回测核验}
+本次从已校验的因子输入重新分组、执行交易，分别重跑四子项CDPDP与两子项CDPDP$^{\prime}$；没有修改因子定义或按2018结果调整方向。
+三池、三个期限、两种执行假设、2017验证与2018测试合计72个案例；36组重建分组与原记录逐项一致，价格约束指标也与主账本一致。
+
+\begin{table}[H]\centering\normalsize
+\caption{全部A股、2018测试：CDPDP系列重新回测}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}\toprule
+因子 & 交易日 & 无价格约束累计 & 夏普 & 价格约束累计 & 夏普\\\midrule
+\input{tables/cdpdp_rerun.tex}\bottomrule
+\end{tabular}\end{table}
+2018年三池三期限中，无价格约束CDPDP的最高夏普为1.19，CDPDP$^{\prime}$为1.73；最高值仅作完整性诊断，不用于重新选型。
+此前5.17的高夏普属于CDPP（单序列差分），不能归于CDPDP或CDPDP$^{\prime}$（双序列差分）。
+本次保留十组、买卖各0.0015、借券费0的研究假设，并沿用退化相关系数置0、子项去极值与市值处理的实现约定；未检验改变这些约定的敏感性，也不等同自然月五组的研报完全复现。
+
+完整72条绩效见\path{results/execution/cdpdp_rerun.csv}，按2017验证选定的配置见\path{results/execution/cdpdp_selected.csv}，全A股两种定义的逐日独立归因见\path{results/execution/cdpdp_daily_attribution.csv}。
+
+\clearpage
 \section{手续费、核验与复现}
 \textbf{手续费保持双边千三：每次实际买卖各0.0015，完整往返0.003。}
 多、空两腿都对实际成交计费，初始建仓、换仓、漂移再平衡和退出均计入。

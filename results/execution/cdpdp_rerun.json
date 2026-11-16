@@ -1,0 +1,33 @@
+{
+  "task": "fresh CDPDP / CDPDP-prime portfolio rerun; factor definition unchanged",
+  "source_commit": "87c1b868fd0351fcd4132ce559cf02fdd86c8b81",
+  "source_sha256": "b70f5b886fcb5ad3f9ff23379ec0d0fe7b1d3ad4f94e745d2c088a8adeee1b62",
+  "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
+  "cases": 72,
+  "reconstructed_group_sets_checked": 36,
+  "opening_price_metrics_match_existing": true,
+  "independent_allA_attribution_reconciles": true,
+  "groups": 10,
+  "fee_each_transaction": 0.0015,
+  "round_trip_fee": 0.003,
+  "borrow_fee": 0,
+  "theoretical_lendability_assumed": true,
+  "first_test_entry": "2018-01-02",
+  "test_end": "2018-12-28",
+  "selection_uses_test": false,
+  "undefined_correlation_policy": "retain current implementation: fewer than 3 pairs or zero variance -> 0; daily 20-day complete mean",
+  "input_hashes": {
+    "CSI300": {
+      "features.parquet": "5c6d7a63900f5bf16c5ab349dddf6d12aa96f1324b879005b6495fc63aa1ff59",
+      "daily_market.parquet": "e3d1b42da155b2f4c9b1358b792d072e598ba20fa974daf97b580235c78e4124"
+    },
+    "CSI500": {
+      "features.parquet": "2d6a51526e38f964f7161475ce354b65e1ff745e74ee6fcf429bb14992c6ebe8",
+      "daily_market.parquet": "7305b4e8be5acc216728ccbb4a8adb08358f8b501e8ead4ce47ec0d7ce2530f6"
+    },
+    "AllA": {
+      "features.parquet": "bb4caa804b42291feccbac219dbf4d8baef55de060556b6e76934e5f9e2ebb15",
+      "daily_market.parquet": "40d8f085a7d9158cf9eadedb6e1f96d99bc4175bc3e3a74a70172739940d332a"
+    }
+  }
+}
