@@ -1,5 +1,5 @@
 {
-  "protocol": "eight_factors_no_cdpp_opening_price_2018_v4",
+  "protocol": "eight_factors_five_groups_unconstrained_short_2018_v5",
   "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "universe": "all",
   "training": [
@@ -14,7 +14,7 @@
     "2017-01-03",
     "2017-09-29"
   ],
-  "groups": 10,
+  "groups": 5,
   "candidate_factors": [
     "HF_SmartMoney",
     "HF_CPV",
@@ -32,11 +32,12 @@
   "test_refits": 0,
   "nested_outer_searches": 9,
   "final_searches": 3,
-  "short_policy": "opening_price",
+  "short_policy": "unconstrained",
   "annual_borrow_fee": 0.0,
   "inventory_verified": false,
-  "fresh_model_training": true,
+  "fresh_model_training": false,
+  "verified_frozen_models_reused": true,
   "sources": {
-    "code2_new.py": "8752f210f6628dedd4e430e1b9b4557430aaaf7ad653c87ffcd1f03c51fb9c4b"
+    "code2_new.py": "29595884b56d4b5ea43e40cf5497186ce8c88ff30e62b748bff5c73619388c45"
   }
 }

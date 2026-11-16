@@ -1,5 +1,5 @@
 {
-  "protocol": "eight_factors_no_cdpp_opening_price_2018_v4",
+  "protocol": "eight_factors_five_groups_unconstrained_short_2018_v5",
   "model_protocol": "eight_factors_no_cdpp_nested_2016_2017_v4",
   "training": [
     "2016-01-01",
@@ -24,7 +24,7 @@
     "HF_LowAmpMomentum",
     "HF_Skewness"
   ],
-  "groups": 10,
+  "groups": 5,
   "round_trip_fee": 0.003,
   "test_refits": 0,
   "selection_uses_test_returns": true,
@@ -38,10 +38,10 @@
   "plot_selection_metric": "equal mean of nine strategy 2018 net long-short CAGRs",
   "nested_outer_searches": 27,
   "final_searches": 9,
-  "short_policy": "opening_price",
+  "short_policy": "unconstrained",
   "inventory_verified": false,
   "annual_borrow_fee": 0.0,
-  "result_interpretation": "eight-factor research backtest; opening short-price condition; zero borrowing and financing fees",
+  "result_interpretation": "five groups; fixed-direction long Q1 short Q5; unconstrained theoretical shorts; zero borrowing and financing fees",
   "evaluation_focus": "long_short",
   "training_label": "stock-level cross-section demeaned N-day open return",
   "training_objective": "reg:squarederror",
@@ -55,6 +55,6 @@
     20
   ],
   "sources": {
-    "code2_new.py": "8752f210f6628dedd4e430e1b9b4557430aaaf7ad653c87ffcd1f03c51fb9c4b"
+    "code2_new.py": "29595884b56d4b5ea43e40cf5497186ce8c88ff30e62b748bff5c73619388c45"
   }
 }

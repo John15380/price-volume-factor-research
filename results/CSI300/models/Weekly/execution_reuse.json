@@ -1,0 +1,17 @@
+{
+  "mode": "verified frozen models; regenerated predictions identical",
+  "training_baseline_commit": "98be798",
+  "learning_ast_unchanged": true,
+  "model_sha256": "59b2dd7a5b55bb3e3968e2c6a9c81d49496587ed62b478d2195a958ad2526c50",
+  "outer_model_sha256": {
+    "Q1": "15bc2f875aae7a00482e41c182d0ad1d11bcc4e795290bd413a78fe28e11fd6b",
+    "Q2": "77a4b908a6aea4709737dc6ebe5334db38ffda48f3e4f478fb3d7440f3b27f62",
+    "Q3": "4994640d1af835e0b207eac6e4bc587c7a11f4a95258882137c8097790f4c2c6"
+  },
+  "features_sha256": "2458af06531d9e3e8f6b89f088324d9bcad6ab4c1483c7d12a70c66aaadb1514",
+  "new_training_fits": 0,
+  "prediction_rows": {
+    "validation": 50712,
+    "test": 69325
+  }
+}

@@ -1,6 +1,6 @@
 """量价多因子实验的唯一代码文件。
 
-python code2_new.py --with-xgboost   # 八因子、训练期筛选/调参和十组回测
+python code2_new.py --with-xgboost   # 八因子、训练期筛选/调参和五组回测
 python code2_new.py --compare-universes  # 三池固定训练及2018回测
 python code2_new.py --self-test     # 因子、账本和时间隔离自动测试
 python code2_new.py --report        # 核验当前结果并生成根目录 report.pdf
@@ -56,8 +56,8 @@ class Config:
     annual_risk_free: float = 0.0
     min_cross_section: int = 20
     ls_leg_weight: float = 1.0
-    n_groups: int = 10
-    short_policy: str = 'opening_price'
+    n_groups: int = 5
+    short_policy: str = 'unconstrained'
     short_inventory: Path | None = None
     initial_capital: float = 1_000_000.0
 
@@ -425,7 +425,7 @@ class Portfolio:
         return (notionals.sum(), costs.sum())
 
     def execute(self, prices, can_buy, can_sell, day, weights=None, can_increase=None,
-                can_short=None, short_capacity=None):
+                can_short=None, short_capacity=None, short_quote=None):
         equity = self.value(prices)
         gross_limit = 2 * self.cfg.ls_leg_weight if self.name == 'TheoreticalLS' else 1.0
         if equity <= 0:
@@ -455,6 +455,9 @@ class Portfolio:
         reduced_target = np.where(opposite, 0.0, target)
         delta = np.where(reduction, reduced_target - self.units, 0.0)
         permitted = np.where(delta > 0, can_buy, can_sell)
+        quote = (np.isfinite(prices) & (prices > 0)) if short_quote is None else np.asarray(short_quote, bool)
+        if self.cfg.short_policy == 'unconstrained':
+            permitted = np.where(reduction & (self.units < 0), quote, permitted)
         blocked_reductions = reduction & ~permitted
         self.pending[reduction] = reduced_target[reduction]
         done = delta.copy()
@@ -473,6 +476,9 @@ class Portfolio:
             admission_blocked = int(((np.abs(add) > 1e-14) & ~admission).sum())
             allowed = np.where(add > 0, can_buy, can_sell) & admission
             new_short = add < -1e-14
+            if self.cfg.short_policy == 'unconstrained':
+                allowed = np.where(new_short, quote, allowed)
+                admission_blocked = int(((np.abs(add) > 1e-14) & ~admission & ~new_short).sum())
             requested_short_notional = float(np.nansum(np.abs(add[new_short]*prices[new_short])))
             if self.cfg.short_policy != 'unconstrained':
                 short_permission = np.zeros(len(add), bool) if can_short is None else can_short
@@ -539,7 +545,8 @@ def backtest(groups, schedule, market, cfg):
             stats = book.execute(opening, market.buy[t], market.sell[t], day, None if new_weights is None else new_weights[b],
                                  None if market.increase is None else market.increase[t],
                                  None if market.short_price is None else market.short_price[t],
-                                 None if market.short_capacity is None else market.short_capacity[t])
+                                 None if market.short_capacity is None else market.short_capacity[t],
+                                 np.isfinite(market.open[t]) & (market.open[t] > 0))
             nav = book.value(closing)
             if nav <= 0:
                 raise ValueError(f'{day} {book.name} 日末净资产非正。')
@@ -1498,7 +1505,7 @@ def pipeline_export(features, factor, period, market, cfg, destination, low):
     rows = research_export_case(features, factor, period, market, cfg, destination, low, False)
     for row in rows:
         row['Groups'] = cfg.n_groups
-        row['Role'] = 'Long' if row['Portfolio'] == f'Group{cfg.n_groups}' else 'LongShort' if row['Portfolio'] == 'TheoreticalLS' else 'Decile'
+        row['Role'] = 'Long' if row['Portfolio'] == f'Group{cfg.n_groups}' else 'LongShort' if row['Portfolio'] == 'TheoreticalLS' else 'Quintile'
     return rows
 
 
@@ -1516,7 +1523,7 @@ TEST_START = pd.Timestamp('2018-01-01')
 VALIDATION_START = pd.Timestamp('2017-01-01')
 VALIDATION_END = pd.Timestamp('2017-09-30')
 PROTOCOL = 'eight_factors_no_cdpp_nested_2016_2017_v4'
-EXECUTION_PROTOCOL = 'eight_factors_no_cdpp_opening_price_2018_v4'
+EXECUTION_PROTOCOL = 'eight_factors_five_groups_unconstrained_short_2018_v5'
 
 
 def fixed_training_sample(features, training_market, days):
@@ -1648,6 +1655,73 @@ def fixed_model(features,training_market,days,destination,trials=96,finalists=16
     return {'validation':validation,'test':pred}
 
 
+
+def frozen_execution_predictions(features,training_market,days,destination,trials=96,finalists=16):
+    """仅改变组合执行时，验证学习代码及历史模型后重新预测，绝不重新选参。"""
+    import ast
+    import subprocess
+    baseline='98be798'
+    original=subprocess.check_output(['git','show',baseline+':code2_new.py'],cwd=BASE,text=True)
+    before=ast.parse(original)
+    after=ast.parse(Path(__file__).read_text())
+    def learning_nodes(tree):
+        return {node.name:ast.dump(node,include_attributes=False) for node in tree.body
+                if isinstance(node,(ast.FunctionDef,ast.ClassDef))
+                and (node.name.startswith(('tuning_','model_','fixed_'))
+                     and node.name not in {'fixed_pool','fixed_comparison'})}
+    assert learning_nodes(before)==learning_nodes(after),'学习代码已改变，必须重新训练。'
+    def constants(tree):
+        return [ast.dump(node,include_attributes=False) for node in tree.body if isinstance(node,ast.Assign)
+                and any(isinstance(t,ast.Name) and (t.id.startswith(('TUNING_','RESEARCH_')) or
+                        t.id in {'FACTORS','PIPELINE_CANDIDATES','PROTOCOL','TRAIN_START','TEST_START','VALIDATION_START','VALIDATION_END'})
+                        for t in node.targets)]
+    assert constants(before)==constants(after),'因子或学习协议已改变，必须重新训练。'
+    destination=Path(destination)
+    metadata=json.loads((destination/'model_config.json').read_text())
+    assert metadata['protocol']==PROTOCOL and metadata['horizon']==days and metadata['test_refits']==0
+    assert pd.Timestamp(metadata['max_training_label_end'])<TEST_START
+    assert pipeline_file_hash(destination/'model.json')==metadata['model_sha256']
+    assert set(metadata['selected_features']).issubset(FACTORS)
+    assert len(pd.read_csv(destination/'tuning/coarse_trials.csv'))==trials
+    assert len(pd.read_csv(destination/'tuning/fine_trials.csv'))==3*finalists
+    history=features[features.TradingDay.ge(TRAIN_START)&features.TradingDay.lt(TEST_START)
+                     &features[list(FACTORS)].notna().sum(axis=1).ge(3)]
+    folds=pd.read_csv(destination/'validation_refits.csv',parse_dates=['SeedSignal','ValidationEnd',
+                          'ParameterAsOf','SelectionMaxLabelEnd','TrainMaxLabelEnd'])
+    forecasts=[]
+    hashes={}
+    for row in folds.itertuples(index=False):
+        folder=destination/'outer_validation'/f'Q{row.Fold+1}'
+        assert pipeline_file_hash(folder/'model.json')==row.ModelSHA256
+        assert row.SelectionMaxLabelEnd<=row.ParameterAsOf and row.TrainMaxLabelEnd<=row.ParameterAsOf
+        chosen=row.Features.split('|')
+        model=XGBRegressor();model.load_model(folder/'model.json')
+        assert model.get_booster().feature_names==chosen and set(chosen).issubset(FACTORS)
+        sample=history[history.TradingDay.between(row.SeedSignal,row.ValidationEnd)]
+        forecasts.append(fixed_predict(model,chosen,sample,row.ParameterAsOf,row.SelectionMaxLabelEnd,row.TrainMaxLabelEnd))
+        hashes[f'Q{row.Fold+1}']=row.ModelSHA256
+    validation=pd.concat(forecasts,ignore_index=True).drop_duplicates(KEYS,keep='last').sort_values(KEYS)
+    model=XGBRegressor();model.load_model(destination/'model.json')
+    chosen=metadata['selected_features'];assert model.get_booster().feature_names==chosen
+    seed=pd.Timestamp(metadata['test_seed_signal'])
+    sample=features[features.TradingDay.ge(seed)&features[list(FACTORS)].notna().sum(axis=1).ge(3)]
+    splits=pd.read_csv(destination/'tuning/splits.csv',parse_dates=['ValidationMaxLabelEnd'])
+    pred=fixed_predict(model,chosen,sample,seed,splits.ValidationMaxLabelEnd.max(),
+                       pd.Timestamp(metadata['max_training_label_end']))
+    for study,new in [('validation',validation),('test',pred)]:
+        saved=pd.read_parquet(destination/f'{study}_predictions.parquet')
+        for column in ['ParameterAsOf','SelectionMaxLabelEnd','TrainMaxLabelEnd']:
+            new[column]=new[column].astype(saved[column].dtype)
+        pd.testing.assert_frame_equal(new.reset_index(drop=True),saved.reset_index(drop=True),check_exact=True)
+    receipt={'mode':'verified frozen models; regenerated predictions identical',
+             'training_baseline_commit':baseline,'learning_ast_unchanged':True,
+             'model_sha256':metadata['model_sha256'],'outer_model_sha256':hashes,
+             'features_sha256':pipeline_file_hash(destination.parent.parent/'input/features.parquet'),
+             'new_training_fits':0,'prediction_rows':{'validation':len(validation),'test':len(pred)}}
+    (destination/'execution_reuse.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2))
+    LOG.info('%d日冻结模型复核：学习代码相同，重新预测与原预测逐值一致。',days)
+    return {'validation':validation,'test':pred}
+
 def study_market(daily,study,cfg=None):
     calendar=pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
     start,end=(VALIDATION_START,VALIDATION_END) if study=='validation' else (TEST_START,pd.Timestamp('2018-12-31'))
@@ -1665,9 +1739,9 @@ def pool_eligible(daily,cfg):
     return eligible
 
 
-def fixed_pool(cfg,trials=96,finalists=16):
-    if cfg.n_groups!=10 or not np.isclose(cfg.one_way_fee,.0015):
-        raise ValueError('当前固定实验使用10分组、买卖各0.0015。')
+def fixed_pool(cfg,trials=96,finalists=16,reuse_frozen=False):
+    if cfg.n_groups!=5 or not np.isclose(cfg.one_way_fee,.0015):
+        raise ValueError('当前固定实验使用5分组、买卖各0.0015。')
     root=Path(cfg.output_dir)
     features,daily=pipeline_prepare_inputs(cfg)
     eligible=pool_eligible(daily,cfg)
@@ -1676,7 +1750,7 @@ def fixed_pool(cfg,trials=96,finalists=16):
     markets={study:study_market(daily,study,cfg) for study in ['validation','test']}
     # 全市场同时最多两个调参任务，避免大量时间折在内存中重叠。
     with ThreadPoolExecutor(max_workers=2 if cfg.index=='all' else 3) as executor:
-        jobs={period:executor.submit(fixed_model,features.copy(deep=True),
+        jobs={period:executor.submit(frozen_execution_predictions if reuse_frozen else fixed_model,features.copy(deep=True),
               replace(training_market,dates=pd.DatetimeIndex(training_market.dates.to_numpy(copy=True)),
                       symbols=pd.Index(training_market.symbols.to_numpy(copy=True))),
               days,root/'models'/period,trials,finalists) for period,days in PERIODS.items()}
@@ -1708,10 +1782,10 @@ def fixed_pool(cfg,trials=96,finalists=16):
     pd.DataFrame(benchmark_records).to_csv(root/'benchmark_summary.csv',index=False)
     metadata={'protocol':EXECUTION_PROTOCOL,'model_protocol':PROTOCOL,'universe':cfg.index,'training':['2016-01-01','2017-12-31'],
               'test':['2018-01-02','2018-12-28'],'selection_validation':['2017-01-03','2017-09-29'],
-              'groups':10,'candidate_factors':list(FACTORS),'one_way_fee':.0015,'round_trip_fee':.003,
+              'groups':5,'candidate_factors':list(FACTORS),'one_way_fee':.0015,'round_trip_fee':.003,
               'trials':trials,'finalists':finalists,'test_refits':0,'nested_outer_searches':9,
               'final_searches':3,'short_policy':cfg.short_policy,'annual_borrow_fee':cfg.annual_borrow_fee,
-              'inventory_verified':cfg.short_policy=='verified_inventory','fresh_model_training':True,
+              'inventory_verified':cfg.short_policy=='verified_inventory','fresh_model_training':not reuse_frozen,'verified_frozen_models_reused':reuse_frozen,
               'sources':{Path(__file__).name:pipeline_file_hash(__file__)}}
     (root/'run_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
     LOG.info('%s固定实验完成：2016--2017训练，2018回测',UNIVERSE_NAMES[cfg.index])
@@ -1760,7 +1834,7 @@ def fixed_comparison(root=BASE/'results'):
             for factor in [*FACTORS,'Pred_Score']:
                 for period in PERIODS:
                     rows=summary[summary.Factor.eq(factor)&summary.Period.eq(period)]
-                    long=rows[rows.Portfolio.eq('Group10')].iloc[0]
+                    long=rows[rows.Portfolio.eq('Group5')].iloc[0]
                     ls=rows[rows.Portfolio.eq('TheoreticalLS')].iloc[0]
                     b=bm[bm.Study.eq(study)&bm.Period.eq(period)&bm.Cost.eq('net')].iloc[0]
                     assert long.Days==b.Days
@@ -1778,9 +1852,9 @@ def fixed_comparison(root=BASE/'results'):
                         'LSTradingCost':ls.TotalTradingCost,'LSMeanDailyTurnover':ls.MeanDailyTurnover,
                         'Days':long.Days,'MeanSignalStocks':long.MeanSignalStocks,
                         'BenchmarkMeanStocks':b.MeanSignalStocks,'CoverageRatio':long.MeanSignalStocks/b.MeanSignalStocks})
-                    for i in range(1,11):
+                    for i in range(1,6):
                         row=rows[rows.Portfolio.eq(f'Group{i}')].iloc[0]
-                        deciles.append({'Study':study,'Universe':universe,'Factor':factor,'Period':period,'Group':i,
+                        deciles.append({'Study':study,'Universe':universe,'Factor':factor,'Period':period,'Group':6-i,'LedgerGroup':i,
                                         'AnnualReturn':row.AnnualReturn,'TotalReturn':row.TotalReturn,'Sharpe':row.Sharpe})
         for period in PERIODS:
             for cost in ['net','gross']:
@@ -1804,19 +1878,19 @@ def fixed_comparison(root=BASE/'results'):
     comparison.to_csv(root/'universe_comparison.csv',index=False)
     validation.to_csv(root/'validation_candidates.csv',index=False)
     selected.to_csv(root/'selected_cases.csv',index=False)
-    pd.DataFrame(deciles).to_csv(root/'decile_returns.csv',index=False)
+    pd.DataFrame(deciles).to_csv(root/'quintile_returns.csv',index=False)
     pd.concat(benchmarks,ignore_index=True).to_csv(root/'benchmark_summary.csv',index=False)
     pd.DataFrame(year_rows).to_csv(root/'benchmark_year_returns.csv',index=False)
     pd.DataFrame(monthly_rows).to_csv(root/'benchmark_month_returns.csv',index=False)
     metadata={'protocol':EXECUTION_PROTOCOL,'model_protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
-              'universes':UNIVERSE_FOLDERS,'candidate_factors':list(FACTORS),'groups':10,'round_trip_fee':.003,
+              'universes':UNIVERSE_FOLDERS,'candidate_factors':list(FACTORS),'groups':5,'round_trip_fee':.003,
               'test_refits':0,'selection_uses_test_returns':True,'selection_period':['2018-01-02','2018-12-28'],
               'selection_metric':'2018 net long-short CAGR; retrospective display only',
               'model_selection_uses_test_returns':False,'display_selection_uses_test_returns':True,
               'plot_selection_metric':'equal mean of nine strategy 2018 net long-short CAGRs',
               'nested_outer_searches':27,'final_searches':9,
-              'short_policy':'opening_price','inventory_verified':False,'annual_borrow_fee':0.0,
-              'result_interpretation':'eight-factor research backtest; opening short-price condition; zero borrowing and financing fees',
+              'short_policy':'unconstrained','inventory_verified':False,'annual_borrow_fee':0.0,
+              'result_interpretation':'five groups; fixed-direction long Q1 short Q5; unconstrained theoretical shorts; zero borrowing and financing fees',
               'evaluation_focus':'long_short','training_label':'stock-level cross-section demeaned N-day open return',
               'training_objective':'reg:squarederror','early_stopping_metric':'validation weighted RMSE',
               'hyperparameter_metric':'mean validation daily RankIC - 0.1 * fold standard deviation',
@@ -1826,7 +1900,7 @@ def fixed_comparison(root=BASE/'results'):
     LOG.info('2018完整结果汇总完成：表格加粗及统一选图按2018回测；训练、调参仍仅用2016--2017。')
 
 
-def run_universe_comparison(cfg,trials=96,finalists=16):
+def run_universe_comparison(cfg,trials=96,finalists=16,reuse_frozen=False):
     for index in ['300','500','all']:
         current=replace(cfg,index=index,output_dir=Path(cfg.output_dir)/UNIVERSE_FOLDERS[index])
         marker=Path(current.output_dir)/'run_config.json'
@@ -1834,7 +1908,7 @@ def run_universe_comparison(cfg,trials=96,finalists=16):
         ready=(saved.get('protocol')==EXECUTION_PROTOCOL and
                saved.get('sources',{}).get(Path(__file__).name)==pipeline_file_hash(__file__))
         if not ready:
-            fixed_pool(current,trials,finalists)
+            fixed_pool(current,trials,finalists,reuse_frozen)
         else:
             pipeline_prepare_inputs(current)
             metadata=json.loads(marker.read_text())
@@ -1853,7 +1927,7 @@ def run_self_tests(output_dir=BASE / "results"):
     class CorrectedPipelineTests(unittest.TestCase):
 
         def setUp(self):
-            self.cfg = Config(one_way_fee=0)
+            self.cfg = Config(one_way_fee=0,n_groups=10,short_policy='opening_price')
 
         def raw_quotes(self, dates, prices, reference=None):
             reference = reference if reference is not None else np.r_[prices[0], prices[:-1]]
@@ -1987,7 +2061,7 @@ def run_self_tests(output_dir=BASE / "results"):
             self.assertEqual(result.N_Paired.iloc[0], 19)
 
         def test_initial_and_actual_turnover_costs(self):
-            cfg = Config(one_way_fee=0.0015)
+            cfg = Config(one_way_fee=0.0015,n_groups=10)
             book = Portfolio(pd.Index(['a', 'b']), cfg, 'test')
             all_ = np.ones(2, dtype=bool)
             initial = book.execute(np.ones(2), all_, all_, 'day1', np.array([0.5, 0.5]))
@@ -2018,10 +2092,10 @@ def run_self_tests(output_dir=BASE / "results"):
             market = self.market()
             features = self.features(market)
             groups, schedule = signal_groups(features, 'factor', market.dates, 3)
-            baseline, _ = backtest(groups, schedule, market, Config())
+            baseline, _ = backtest(groups, schedule, market, Config(n_groups=10))
             features.loc[features.TradingDay.eq(market.dates[9]), 'factor'] *= -1
             changed, schedule = signal_groups(features, 'factor', market.dates, 3)
-            modified, _ = backtest(changed, schedule, market, Config())
+            modified, _ = backtest(changed, schedule, market, Config(n_groups=10))
             pd.testing.assert_frame_equal(baseline[baseline.TradingDay < market.dates[10]], modified[modified.TradingDay < market.dates[10]])
 
         def test_non_rebalance_signals_do_not_change_nav(self):
@@ -2260,7 +2334,7 @@ def run_self_tests(output_dir=BASE / "results"):
             self.limits = self.raw[KEYS].assign(up_limit=11.0, down_limit=9.0)
             self.factors = self.raw[KEYS].assign(adj_factor=1.0)
             self.temp = tempfile.TemporaryDirectory()
-            self.cfg = Config(output_dir=Path(self.temp.name), one_way_fee=0)
+            self.cfg = Config(output_dir=Path(self.temp.name), one_way_fee=0,n_groups=10,short_policy='opening_price')
 
         def tearDown(self):
             self.temp.cleanup()
@@ -2570,7 +2644,7 @@ def run_self_tests(output_dir=BASE / "results"):
             features = pd.DataFrame([{'TradingDay':d,'SecuCode':s,'factor':i}
                                      for d in dates for i,s in enumerate(symbols)])
             groups,schedule = signal_groups(features,'factor',dates,5)
-            expected,_ = backtest(groups,schedule,market,Config())
+            expected,_ = backtest(groups,schedule,market,Config(n_groups=10))
             actual,_ = single_long_ledger(groups[groups.Group.eq(10)],schedule,market,Config(),'Group10')
             expected = expected[expected.Portfolio.eq('Group10')].reset_index(drop=True)
             pd.testing.assert_frame_equal(actual,expected)
@@ -2710,7 +2784,45 @@ def run_self_tests(output_dir=BASE / "results"):
                 pd.testing.assert_frame_equal(pd.read_parquet(a/'validation_predictions.parquet'),
                                               pd.read_parquet(b/'validation_predictions.parquet'))
 
+    class FiveGroupProtocolTests(unittest.TestCase):
+        def test_five_group_membership_and_fixed_direction(self):
+            dates=pd.bdate_range('2018-01-01',periods=3)
+            symbols=pd.Index([str(i) for i in range(25)])
+            x=pd.DataFrame([{'TradingDay':dates[0],'SecuCode':v,'f':i} for i,v in enumerate(symbols)])
+            for low,expected in [(True,set(symbols[:5])),(False,set(symbols[-5:]))]:
+                groups,schedule=signal_groups(x,'f',dates,5,low_is_long=low,n_groups=5)
+                self.assertEqual(groups.groupby('Group').size().tolist(),[5]*5)
+                self.assertEqual(set(groups.loc[groups.Group.eq(5),'SecuCode']),expected)
+
+        def test_losing_spread_keeps_negative_sign(self):
+            cfg=Config(one_way_fee=0,short_policy='unconstrained')
+            book=Portfolio(pd.Index(['good','bad']),cfg,'TheoreticalLS')
+            yes=np.ones(2,bool)
+            book.execute(np.ones(2),yes,yes,'entry',np.array([1.,-1.]))
+            # Good group loses 10%, bad group gains 10%: signed spread is -20%.
+            self.assertAlmostEqual(book.value(np.array([.9,1.1]))-1,-.2)
+            self.assertAlmostEqual(book.units[0],1.)
+            self.assertAlmostEqual(book.units[1],-1.)
+
+        def test_unconstrained_short_ignores_permissions_but_charges_both_sides(self):
+            cfg=Config(short_policy='unconstrained')
+            book=Portfolio(pd.Index(['s']),cfg,'TheoreticalLS')
+            no=np.zeros(1,bool);quote=np.ones(1,bool)
+            book.execute(np.ones(1),no,no,'entry',np.array([-1.]),no,no,short_quote=quote)
+            self.assertLess(book.units[0],0)
+            book.execute(np.ones(1),no,no,'exit',np.zeros(1),no,no,short_quote=quote)
+            self.assertAlmostEqual(book.units[0],0)
+            self.assertEqual(len(book.trades),2)
+            for trade in book.trades:self.assertAlmostEqual(trade['Cost']/trade['Notional'],.0015)
+
+        def test_missing_quote_does_not_create_short_at_carried_price(self):
+            book=Portfolio(pd.Index(['s']),Config(short_policy='unconstrained'),'TheoreticalLS')
+            yes=np.ones(1,bool);no=np.zeros(1,bool)
+            book.execute(np.ones(1),yes,yes,'entry',np.array([-1.]),yes,yes,short_quote=no)
+            self.assertEqual(book.units[0],0)
+
     suite = unittest.TestSuite()
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(FiveGroupProtocolTests))
     class ShortExecutionTests(unittest.TestCase):
         def book(self,policy='opening_price'):
             return Portfolio(pd.Index(['a']),Config(one_way_fee=0,short_policy=policy),'TheoreticalLS')
@@ -2849,7 +2961,7 @@ def single_long_ledger(groups, schedule, market, cfg, name='PoolEqualWeight'):
 
 # 报告图表及当前实验结果核验
 def _render_report_contents():
-    """固定2016--2017训练、2018测试报告；选型函数只读取训练期验证。"""
+    """固定2016--2017训练、2018测试报告；模型仅使用训练期；展示按2018回测选取。"""
     import re
     import matplotlib
     matplotlib.use('Agg')
@@ -2866,8 +2978,8 @@ def _render_report_contents():
     config=json.loads((R/'run_config.json').read_text())
     assert config['protocol']==EXECUTION_PROTOCOL and config['display_selection_uses_test_returns'] and config['test_refits']==0
     assert not config['model_selection_uses_test_returns']
-    assert config['short_policy']=='opening_price' and not config['inventory_verified']
-    assert config['round_trip_fee']==.003 and config['groups']==10
+    assert config['short_policy']=='unconstrained' and not config['inventory_verified']
+    assert config['round_trip_fee']==.003 and config['groups']==5
     assert config['evaluation_focus']=='long_short'
     for name,digest in config['sources'].items():
         assert pipeline_file_hash(BASE/name)==digest,name
@@ -2918,7 +3030,7 @@ def _render_report_contents():
             before=after-ls.DeltaUnits
             new_short=np.maximum(-after,0)-np.maximum(-before,0)
             entered=ls.loc[new_short.gt(1e-12)].merge(short_reference,on=KEYS,validate='many_to_one')
-            assert entered.OpenPrice.ge(entered.PrevClosePrice-1e-6).all()
+            assert entered.OpenPrice.gt(0).all() and np.isfinite(entered.OpenPrice).all()
             counters['short_entry_trades_checked']+=len(entered)
         for portfolio,frame in ledger.groupby('Portfolio'):
             np.testing.assert_allclose(frame.NAV,frame.Cash+frame.LongValue-frame.ShortValue,atol=1e-10)
@@ -2945,15 +3057,15 @@ def _render_report_contents():
         for study in ['validation','test']:
             frame=pd.read_csv(root/f'{study}_summary.csv')
             summaries[universe][study]=frame
-            assert len(frame)==297 and set(frame.Factor)=={*FACTORS,'Pred_Score'}
+            assert len(frame)==162 and set(frame.Factor)=={*FACTORS,'Pred_Score'}
             for factor,period in frame[['Factor','Period']].drop_duplicates().itertuples(index=False,name=None):
                 folder=root/study/factor/period
                 ledger=pd.read_csv(folder/'daily_ledger.csv',parse_dates=['TradingDay'])
-                assert set(ledger.Portfolio)=={*[f'Group{i}' for i in range(1,11)],'TheoreticalLS'}
+                assert set(ledger.Portfolio)=={*[f'Group{i}' for i in range(1,6)],'TheoreticalLS'}
                 if study=='test':assert ledger.TradingDay.dt.year.eq(2018).all()
                 else:assert ledger.TradingDay.between('2017-01-01','2017-09-30').all()
                 groups=pd.read_parquet(folder/'signal_groups.parquet')
-                assert set(groups.Group.unique())==set(range(1,11))
+                assert set(groups.Group.unique())==set(range(1,6))
                 check(ledger,pd.read_parquet(folder/'trades.parquet'),.0015,frame,factor,period)
                 ic=pd.read_csv(folder/'ic.csv')
                 ic_expected=summarize_ic(ic,PERIODS[period])
@@ -3009,7 +3121,7 @@ def _render_report_contents():
                                'MeanRankIC':best['inner_mean_rank_ic'],**best['parameters']})
             models.append({'Universe':universe,'Period':period,**metadata})
     assert searches==36 and coarse_fits==3456 and fine_fits==1728 and len(outer_models)==27
-    assert counters['series']==1818
+    assert counters['series']==1008
     selection=pd.concat(selections,ignore_index=True)
     parameters=pd.DataFrame(parameters)
     selection.to_csv(R/'feature_selection_summary.csv',index=False)
@@ -3084,11 +3196,11 @@ def _render_report_contents():
         panels.append('下列两表完整列出三池三期限，加粗该因子2018费后多空年化最高的配置。所有因子统一画图，配置按九项策略2018年化收益的等权平均确定；这是事后展示选择。\n')
         panels.append(r'\begin{table}[H]\centering\normalsize\setlength{\tabcolsep}{3.5pt}'+'\n'+
                       r'\caption{'+tex[factor]+r'：全部九组配置的IC与RankIC}\begin{tabular}{llrrrrrr}\toprule'+'\n'+
-                      r'股票池 & 交易日 & RankIC & RankICIR & IC & ICIR & IC期数 & 验证年化\\\midrule'+'\n'+
+                      r'股票池 & 交易日 & RankIC & RankICIR & IC & ICIR & IC期数 & 2017验证年化\\\midrule'+'\n'+
                       rank_rows+r'\bottomrule\end{tabular}\end{table}'+'\n')
         panels.append(r'\begin{table}[H]\centering\normalsize\setlength{\tabcolsep}{3.5pt}'+'\n'+
                       r'\caption{'+tex[factor]+r'：全部九组配置的扣费后多空表现}\begin{tabular}{llrrrrrr}\toprule'+'\n'+
-                      r'股票池 & 交易日 & 累计收益 & 年化收益 & 年化波动 & 夏普 & 最大回撤 & 日均换手\\\midrule'+'\n'+
+                      r'股票池 & 交易日 & 2018累计 & 2018年化 & 年化波动 & 夏普 & 最大回撤 & 日均换手\\\midrule'+'\n'+
                       return_rows+r'\bottomrule\end{tabular}\end{table}'+'\n')
         filename='selected_model' if factor=='Pred_Score' else 'selected_'+factor
         caption=tex[factor]+'；股票池：'+UNIVERSE_NAMES[chosen.Universe]+'；调仓：'+freq[chosen.Period]
@@ -3146,22 +3258,22 @@ def _render_report_contents():
         assert ls.TradingDay.tolist()==b.TradingDay.tolist()
         summary=summaries[universe]['test']
         values=[]
-        for group in range(1,11):
+        for group in range(5,0,-1):
             record=pick(summary,factor,period,f'Group{group}')
             values.append(record.TotalReturn)
-            selected_groups.append({'Factor':factor,'Universe':universe,'Period':period,'Group':group,
+            selected_groups.append({'Factor':factor,'Universe':universe,'Period':period,'Group':6-group,'LedgerGroup':group,
                                     'TotalReturn':record.TotalReturn,'AnnualReturn':record.AnnualReturn,'Sharpe':record.Sharpe})
         values=np.asarray(values)
         baseline=pd.Timestamp('2017-12-29')
         fig,axes=plt.subplots(2,1,figsize=(8.4,7.2),gridspec_kw={'height_ratios':[1.3,1]})
         palette=plt.get_cmap('tab10').colors
-        for group in range(1,11):
+        for group in range(5,0,-1):
             frame=ledger[ledger.Portfolio.eq(f'Group{group}')]
-            color='#b46535' if group==1 else ('black' if group==10 else palette[group-1])
+            color='black' if group==5 else ('#b46535' if group==1 else palette[5-group])
             axes[0].plot([baseline,*frame.TradingDay],[1.,*frame.NAV],color=color,
-                         lw=1.4 if group in (1,10) else .8,alpha=1 if group in (1,10) else .65,
-                         label=f'G{group}',zorder=3 if group in (1,10) else 2)
-        axes[0].plot([baseline,*ls.TradingDay],[1.,*ls.NAV],color='#234b68',lw=2.2,label='L/S (short-price constraint)',zorder=5)
+                         lw=1.4 if group in (1,5) else .8,alpha=1 if group in (1,5) else .65,
+                         label=f'Q{6-group}',zorder=3 if group in (1,5) else 2)
+        axes[0].plot([baseline,*ls.TradingDay],[1.,*ls.NAV],color='#234b68',lw=2.2,label='L/S (long Q1, short Q5)',zorder=5)
         axes[0].plot([baseline,*b.TradingDay],[1.,*b.NAV],color='#888888',ls='--',lw=1.,label='Pool EW (market context)')
         axes[0].legend(frameon=False,ncol=4,loc='lower center',bbox_to_anchor=(.5,1.01),fontsize=8,borderaxespad=0)
         axes[0].set_title(f'2018 | {names[factor]} | {UNIVERSE_FOLDERS[universe]} | {PERIODS[period]} trading days',pad=48)
@@ -3171,10 +3283,10 @@ def _render_report_contents():
         axes[0].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
         axes[0].grid(alpha=.2)
         axes[0].axhline(1,color='gray',lw=.6)
-        colors=['#b46535',*['#a8becd']*8,'#234b68']
-        bars=axes[1].bar(np.arange(1,11),values,color=colors,width=.72)
+        colors=['#234b68',*['#a8becd']*3,'#b46535']
+        bars=axes[1].bar(np.arange(1,6),values,color=colors,width=.72)
         axes[1].bar_label(bars,labels=[f'{value:.1%}' for value in values],padding=3,fontsize=9)
-        axes[1].set_xticks(np.arange(1,11),[f'G{i}' for i in range(1,11)])
+        axes[1].set_xticks(np.arange(1,6),[f'Q{i}' for i in range(1,6)])
         axes[1].yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1))
         lo=min(values.min(),0);hi=max(values.max(),0);span=max(hi-lo,.1)
         axes[1].set_ylim(lo-.14*span,hi+.18*span)
@@ -3182,14 +3294,14 @@ def _render_report_contents():
         axes[1].grid(axis='y',alpha=.2)
         axes[1].set_axisbelow(True)
         axes[1].set_ylabel('2018 group return')
-        axes[1].set_title(f'Decile diagnostic | net L/S cumulative return {ls.NAV.iloc[-1]-1:.2%}')
+        axes[1].set_title(f'Quintile diagnostic | net L/S cumulative return {ls.NAV.iloc[-1]-1:.2%}')
         fig.tight_layout(h_pad=1.4)
         save(fig,filename)
     strategy_figure(model_pool,'Pred_Score',best_model.Period,'selected_model')
     for row in plot_cases[plot_cases.Factor.ne('Pred_Score')].itertuples(index=False):
         strategy_figure(row.Universe,row.Factor,row.Period,'selected_'+row.Factor)
-    pd.DataFrame(selected_groups).to_csv(R/'selected_decile_returns.csv',index=False)
-    assert len(selected_groups)==90
+    pd.DataFrame(selected_groups).to_csv(R/'selected_quintile_returns.csv',index=False)
+    assert len(selected_groups)==45
     (HERE/'appendix_figures.tex').unlink(missing_ok=True)
     expected_figures={'logo','char','correlation','selected_model',*['selected_'+factor for factor in FACTORS]}
     for path in (HERE/'figures').iterdir():
@@ -3213,20 +3325,22 @@ def _render_report_contents():
         else:path.unlink()
     (HERE/'report_ready.tex').write_text(template)
     receipt={**counters,'protocol':EXECUTION_PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
-             'evaluation_focus':'long_short','selection_metric':'nested chronological validation net long-short CAGR',
-             'test_refits':0,'display_selection_uses_test_returns':True,'model_selection_uses_test_returns':False,'tests_passed':tests,'groups':10,
+             'evaluation_focus':'long_short','selection_metric':'2018 net long-short CAGR; retrospective display only',
+             'test_refits':0,'display_selection_uses_test_returns':True,'model_selection_uses_test_returns':False,'tests_passed':tests,'groups':5,
              'final_models':9,'training_validation_models':27,'searches':searches,'cv_fits':coarse_fits+fine_fits,
              'benchmark_ledgers_checked':36,'active_factor_count':8,'cdpp_excluded':True,'borrowing_fee':0,'financing_fee':0,'round_trip_fee':.003,'time_boundaries_checked':True,
              'complete_strategy_configurations_reported':81,'configurations_per_strategy':9,'bold_selection_basis':'2018 net long-short CAGR',
              'common_plot_universe':plot_choice.Universe,'common_plot_period':plot_choice.Period,
              'common_plot_metric':'mean 2018 net long-short CAGR across 9 strategies',
              'nested_parameter_availability_checked':True,'outer_searches':27,'final_searches':9,
-             'short_policy':'opening_price','historical_inventory_supplied':False,
-             'executable_sharpe_established':False,'short_entry_price_checks_passed':True,
-             'model_hashes_checked':True,'selected_correlations_checked':True,'decile_bar_figures':9,
-             'combined_decile_and_long_short_nav_figures':9,
+             'short_policy':'unconstrained','historical_inventory_supplied':False,'long_short_direction':'long Q1 minus short Q5; signed returns',
+             'executable_sharpe_established':False,'short_entry_valid_quotes_checked':True,'short_constraints_enabled':False,'absolute_returns_used':False,
+             'model_hashes_checked':True,'selected_correlations_checked':True,'quintile_bar_figures':9,
+             'combined_quintile_and_long_short_nav_figures':9,
              'training_objective':'reg:squarederror','hyperparameter_metric':'RankIC stability',
-             'execution_lag_trading_days':1,'additional_feature_lag':0,'sources':config['sources']}
+             'execution_lag_trading_days':1,'additional_feature_lag':0,
+             'frozen_model_reuse_verified':all((R/slug/'models'/period/'execution_reuse.json').exists() for slug in UNIVERSE_FOLDERS.values() for period in PERIODS),
+             'sources':config['sources']}
     (R/'validation.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2))
     print(json.dumps(receipt,ensure_ascii=False,indent=2))
 
@@ -3264,15 +3378,16 @@ def main():
     parser.add_argument('--compare-universes', action='store_true', help='同口径完成三池实验并比较结果')
     parser.add_argument('--with-xgboost', action='store_true', help='完整执行训练期筛选和调参')
     parser.add_argument('--prepare-only', action='store_true')
-    parser.add_argument('--short-policy',choices=['opening_price','verified_inventory'],default='opening_price')
+    parser.add_argument('--short-policy',choices=['unconstrained','opening_price','verified_inventory'],default='unconstrained')
     parser.add_argument('--short-inventory',type=Path,help='真实历史账户券源CSV；指数成分不能替代')
     parser.add_argument('--initial-capital',type=float,default=1_000_000.,help='严格券源模式股数换算的初始人民币资金')
     parser.add_argument('--annual-borrow-fee',type=float,default=0.,help='年借券费率假设；并非历史实际费率')
+    parser.add_argument('--reuse-frozen-models',action='store_true',help='仅组合执行变化时，核验学习AST和模型后重新预测并回测')
     parser.add_argument('--self-test', action='store_true', help='运行内置自动测试（含未来季度反事实检查）')
     parser.add_argument('--report', action='store_true', help='核验结果并生成根目录report.pdf')
     parser.add_argument('--trials', type=int, default=96)
     parser.add_argument('--finalists', type=int, default=16)
-    parser.add_argument('--groups', type=int, default=10)
+    parser.add_argument('--groups', type=int, default=5)
     parser.add_argument('--one-way-fee', type=float, default=.0015)
     parser.add_argument('--ls-leg-weight', type=float, default=1.)
     args = parser.parse_args()
@@ -3287,15 +3402,15 @@ def main():
                  one_way_fee=args.one_way_fee, ls_leg_weight=args.ls_leg_weight,short_policy=args.short_policy,
                  short_inventory=args.short_inventory,initial_capital=args.initial_capital,annual_borrow_fee=args.annual_borrow_fee)
     if args.compare_universes:
-        if cfg.short_policy!='opening_price' or cfg.annual_borrow_fee!=0:
-            raise ValueError('三池主比较固定为价格约束、借券费0假设；主报告不执行成本情景比较。')
-        run_universe_comparison(cfg, args.trials, args.finalists)
+        if cfg.short_policy!='unconstrained' or cfg.annual_borrow_fee!=0:
+            raise ValueError('三池主比较固定为五分组、无约束空头、借券费0假设；主报告不执行成本情景比较。')
+        run_universe_comparison(cfg, args.trials, args.finalists,args.reuse_frozen_models)
         return
     cfg = replace(cfg, output_dir=Path(cfg.output_dir) / UNIVERSE_FOLDERS[cfg.index])
     if args.prepare_only:
         pipeline_prepare_inputs(cfg)
         return
-    fixed_pool(cfg,args.trials,args.finalists)
+    fixed_pool(cfg,args.trials,args.finalists,args.reuse_frozen_models)
 
 
 if __name__ == '__main__':

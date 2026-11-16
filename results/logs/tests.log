@@ -1,3 +1,7 @@
+test_five_group_membership_and_fixed_direction (__main__.run_self_tests.<locals>.FiveGroupProtocolTests.test_five_group_membership_and_fixed_direction) ... ok
+test_losing_spread_keeps_negative_sign (__main__.run_self_tests.<locals>.FiveGroupProtocolTests.test_losing_spread_keeps_negative_sign) ... ok
+test_missing_quote_does_not_create_short_at_carried_price (__main__.run_self_tests.<locals>.FiveGroupProtocolTests.test_missing_quote_does_not_create_short_at_carried_price) ... ok
+test_unconstrained_short_ignores_permissions_but_charges_both_sides (__main__.run_self_tests.<locals>.FiveGroupProtocolTests.test_unconstrained_short_ignores_permissions_but_charges_both_sides) ... ok
 test_blocked_exit_keeps_position_and_retries (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_blocked_exit_keeps_position_and_retries) ... ok
 test_drawdown_includes_initial_capital_and_daily_path (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_drawdown_includes_initial_capital_and_daily_path) ... ok
 test_ex_rights_continuous_prices_and_no_future_feedback (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_ex_rights_continuous_prices_and_no_future_feedback) ... ok
@@ -89,6 +93,6 @@ test_verified_inventory_clips_partial_new_borrow (__main__.run_self_tests.<local
 test_verified_mode_requires_actual_inventory_file (__main__.run_self_tests.<locals>.ShortExecutionTests.test_verified_mode_requires_actual_inventory_file) ... ok
 
 ----------------------------------------------------------------------
-Ran 89 tests in 15.614s
+Ran 93 tests in 15.230s
 
 OK

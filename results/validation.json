@@ -1,9 +1,9 @@
 {
-  "series": 1818,
-  "trades": 11100378,
-  "ledger_rows": 388143,
-  "short_entry_trades_checked": 204794,
-  "protocol": "eight_factors_no_cdpp_opening_price_2018_v4",
+  "series": 1008,
+  "trades": 12027355,
+  "ledger_rows": 215208,
+  "short_entry_trades_checked": 822887,
+  "protocol": "eight_factors_five_groups_unconstrained_short_2018_v5",
   "training": [
     "2016-01-01",
     "2017-12-31"
@@ -13,12 +13,12 @@
     "2018-12-28"
   ],
   "evaluation_focus": "long_short",
-  "selection_metric": "nested chronological validation net long-short CAGR",
+  "selection_metric": "2018 net long-short CAGR; retrospective display only",
   "test_refits": 0,
   "display_selection_uses_test_returns": true,
   "model_selection_uses_test_returns": false,
-  "tests_passed": 89,
-  "groups": 10,
+  "tests_passed": 93,
+  "groups": 5,
   "final_models": 9,
   "training_validation_models": 27,
   "searches": 36,
@@ -39,19 +39,23 @@
   "nested_parameter_availability_checked": true,
   "outer_searches": 27,
   "final_searches": 9,
-  "short_policy": "opening_price",
+  "short_policy": "unconstrained",
   "historical_inventory_supplied": false,
+  "long_short_direction": "long Q1 minus short Q5; signed returns",
   "executable_sharpe_established": false,
-  "short_entry_price_checks_passed": true,
+  "short_entry_valid_quotes_checked": true,
+  "short_constraints_enabled": false,
+  "absolute_returns_used": false,
   "model_hashes_checked": true,
   "selected_correlations_checked": true,
-  "decile_bar_figures": 9,
-  "combined_decile_and_long_short_nav_figures": 9,
+  "quintile_bar_figures": 9,
+  "combined_quintile_and_long_short_nav_figures": 9,
   "training_objective": "reg:squarederror",
   "hyperparameter_metric": "RankIC stability",
   "execution_lag_trading_days": 1,
   "additional_feature_lag": 0,
+  "frozen_model_reuse_verified": true,
   "sources": {
-    "code2_new.py": "8752f210f6628dedd4e430e1b9b4557430aaaf7ad653c87ffcd1f03c51fb9c4b"
+    "code2_new.py": "29595884b56d4b5ea43e40cf5497186ce8c88ff30e62b748bff5c73619388c45"
   }
 }
