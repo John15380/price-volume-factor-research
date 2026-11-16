@@ -1,0 +1,36 @@
+{
+  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "universe": "300",
+  "training": [
+    "2016-01-01",
+    "2017-12-31"
+  ],
+  "test": [
+    "2018-01-02",
+    "2018-12-28"
+  ],
+  "selection_validation": [
+    "2017-01-03",
+    "2017-09-29"
+  ],
+  "groups": 10,
+  "candidate_factors": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP",
+    "HF_CDPDP4",
+    "HF_LowAmpMomentum",
+    "HF_Skewness"
+  ],
+  "one_way_fee": 0.0015,
+  "round_trip_fee": 0.003,
+  "trials": 96,
+  "finalists": 16,
+  "test_refits": 0,
+  "sources": {
+    "code2_new.py": "889e3de544d486b197d05305960e9155fae4dcfff6418ab6c9d39edb006ba336"
+  }
+}

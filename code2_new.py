@@ -1,12 +1,12 @@
 """量价多因子实验的唯一代码文件。
 
 python code2_new.py --with-xgboost   # 九因子、训练期筛选/调参和十组回测
-python code2_new.py --models-only   # 保留单因子账本，重跑全部滚动模型
+python code2_new.py --compare-universes  # 三池固定训练及2018回测
 python code2_new.py --self-test     # 因子、账本和时间隔离自动测试
 python code2_new.py --report        # 核验当前结果并生成根目录 report.pdf
 
 T日收盘信号，T+1开盘执行。手续费买卖各0.0015，完整往返0.003。
-多头与理论多空分别记账；XGBoost仅使用标签已实现的历史训练样本。
+多头与理论多空分别记账；XGBoost固定2016--2017训练，2018不重训。
 各段在本文件中直接定义，不依赖任何本地Python模块。
 """
 from __future__ import annotations
@@ -853,7 +853,9 @@ def research_load_data(cfg, universe_name):
     all_calendar = all_calendar[all_calendar <= pd.Timestamp(cfg.end)]
     first = all_calendar.searchsorted(pd.Timestamp(cfg.start))
     calendar = all_calendar[max(0, first - 200):]
-    universe = loader.universe(calendar) if universe_name == '500' else None
+    if universe_name not in ('300', '500', 'all'):
+        raise ValueError('股票池应为300、500或all。')
+    universe = loader.universe(calendar) if universe_name in ('300', '500') else None
     if universe is not None:
         universe.SecuCode = trading_canonical(universe.SecuCode)
         universe = universe.drop_duplicates(KEYS)
@@ -1252,10 +1254,10 @@ def tuning_fitted_trial(tr, va, cols, parameters, max_trees, patience, trial_id)
     score = float(values.mean()) if values.notna().any() else -1.0
     return (score, int(model.best_iteration + 1))
 
-def tuning_tune(train, feature_cols, destination, trials=96, finalists=16, seed=TUNING_SEED):
+def tuning_tune(train, feature_cols, destination, trials=96, finalists=16, seed=TUNING_SEED, folds=None):
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
-    folds = tuning_purged_folds(train)
+    folds = tuning_purged_folds(train) if folds is None else folds
     candidates = tuning_candidate_parameters(trials, seed)
     stats = [tuning_selector_statistics(tr, feature_cols) for tr, _ in folds]
     selections = {}
@@ -1303,69 +1305,6 @@ def tuning_tune(train, feature_cols, destination, trials=96, finalists=16, seed=
     (destination / 'best_parameters.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
     return result
 
-def tuning_walk_forward(features, market, days, output, predict_start='2017-02-01', window_months=12, feature_cols=None, trials=96, finalists=16):
-    feature_cols = list(RESEARCH_FACTORS if feature_cols is None else feature_cols)
-    if any(('Tail' in f or 'Legacy' in f for f in feature_cols)):
-        raise ValueError('已剔除的因子不可进入模型。')
-    features = features[KEYS + feature_cols].copy()
-    features = features[features[feature_cols].notna().sum(axis=1) >= 3].sort_values(KEYS)
-    labels = model_make_labels(features, market, days)
-    labeled = features.merge(labels, on=KEYS, validate='one_to_one')
-    months = sorted(pd.DatetimeIndex(market.dates[market.dates >= pd.Timestamp(predict_start)]).to_period('M').unique())
-    output = Path(output)
-    (output / 'models').mkdir(parents=True, exist_ok=True)
-    forecasts = []
-    logs = []
-    selection_logs = []
-    importance = []
-    active_quarter = None
-    best = None
-    t0 = time.monotonic()
-    for month in months:
-        dates = market.dates[market.dates.to_period('M') == month]
-        cutoff = dates[0]
-        train = model_training_sample(labeled, cutoff, window_months)
-        test = features[features.TradingDay.dt.to_period('M').eq(month) & features.TradingDay.ge(pd.Timestamp(predict_start))]
-        if test.empty:
-            continue
-        if train.TradingDay.nunique() < 160:
-            raise ValueError('外层训练数据不足160天。')
-        assert train.LabelEnd.max() < cutoff
-        quarter = month.asfreq('Q')
-        if quarter != active_quarter:
-            TUNING_LOG.info('%d日 %s 开始训练期调参：%d候选、%d晋级、3个purge时间折', days, quarter, trials, finalists)
-            best = tuning_tune(train, feature_cols, output / 'tuning' / str(quarter), trials, finalists, TUNING_SEED + days * 100 + int(quarter.ordinal))
-            active_quarter = quarter
-            tuning_cutoff = cutoff
-        params = best['parameters'].copy()
-        threshold = params.pop('corr_threshold')
-        budget = params.pop('max_features')
-        stats, corr = tuning_selector_statistics(train, feature_cols)
-        selected, decisions = tuning_choose_features(stats, corr, threshold, budget)
-        decisions['PredictionMonth'] = str(month)
-        decisions['Cutoff'] = cutoff
-        decisions['MaxLabelEnd'] = train.LabelEnd.max()
-        selection_logs.append(decisions)
-        select_dir = output / 'selection'
-        select_dir.mkdir(exist_ok=True)
-        corr.to_csv(select_dir / f'{month}_correlation.csv')
-        model = XGBRegressor(**params, n_jobs=2, random_state=TUNING_SEED, objective='reg:squarederror', tree_method='hist', verbosity=0)
-        model.fit(train[selected].astype('float32'), train.Target, sample_weight=tuning_sample_weights(train))
-        pred = test[KEYS].copy()
-        pred['Pred_Score'] = model.predict(test[selected].astype('float32'))
-        pred.loc[test[selected].notna().sum(axis=1).to_numpy() == 0, 'Pred_Score'] = np.nan
-        forecasts.append(pred)
-        model.save_model(output / 'models' / f'{month}.json')
-        logs.append({'PredictionMonth': str(month), 'Cutoff': cutoff, 'MaxLabelEnd': train.LabelEnd.max(), 'TrainSignalStart': train.TradingDay.min(), 'TrainSignalEnd': train.TradingDay.max(), 'TrainRows': len(train), 'TrainDays': train.TradingDay.nunique(), 'PredictionRows': len(test), 'SelectedFeatures': '|'.join(selected), 'FeatureCount': len(selected), 'CorrelationThreshold': threshold, 'MaxFeatures': budget, 'TuningQuarter': str(active_quarter), 'TuningCutoff': tuning_cutoff, 'Trees': params['n_estimators'], 'InnerRankIC': best['inner_mean_rank_ic'], 'Horizon': days})
-        importance.extend(({'PredictionMonth': str(month), 'Feature': f, 'Importance': float(v)} for f, v in zip(selected, model.feature_importances_)))
-        TUNING_LOG.info('%d日 %s 训练%d行，入选%s，树%d；累计%.1f秒', days, month, len(train), ','.join(selected), params['n_estimators'], time.monotonic() - t0)
-    predictions = pd.concat(forecasts, ignore_index=True).sort_values(KEYS)
-    predictions.to_parquet(output / 'predictions.parquet', index=False)
-    pd.DataFrame(logs).to_csv(output / 'training_log.csv', index=False)
-    pd.concat(selection_logs, ignore_index=True).to_csv(output / 'feature_selection.csv', index=False)
-    pd.DataFrame(importance).to_csv(output / 'feature_importance.csv', index=False)
-    (output / 'model_config.json').write_text(json.dumps({'xgboost_version': xgboost.__version__, 'candidate_features': feature_cols, 'horizon': days, 'predict_start': predict_start, 'training_window_months': window_months, 'trials': trials, 'finalists': finalists, 'quarterly_tuning': True, 'monthly_selection_and_refit': True, 'seed': TUNING_SEED, 'purge': 'training LabelEnd < validation start / outer prediction month start', 'native_missing_values': True, 'prediction_admission': 'at least 3 contemporaneous available candidate factors', 'correlation': 'training daily cross-sectional Spearman, equally weighted dates; greedy representative by |mean RankIC|/std', 'target': 'cross-section demeaned adjusted N-day open return'}, ensure_ascii=False, indent=2))
-    return predictions
 
 # 完整实验流程
 
@@ -1394,7 +1333,7 @@ def pipeline_file_hash(path):
 
 def pipeline_write_input_manifest(cfg, origin):
     folder = Path(cfg.output_dir) / 'input'
-    meta = {'origin': origin, 'factors': PIPELINE_CANDIDATES, 'factor_signature': pipeline_factor_signature(), 'trading_input_signature': trading_input_manifest(cfg.data_dir)['signature'], 'files': {name: pipeline_file_hash(folder / name) for name in ['features.parquet', 'daily_market.parquet']}}
+    meta = {'origin': origin, 'universe': cfg.index, 'factors': PIPELINE_CANDIDATES, 'factor_signature': pipeline_factor_signature(), 'trading_input_signature': trading_input_manifest(cfg.data_dir)['signature'], 'files': {name: pipeline_file_hash(folder / name) for name in ['features.parquet', 'daily_market.parquet']}}
     (folder / 'input_manifest.json').write_text(json.dumps(meta, ensure_ascii=False, indent=2))
 
 def pipeline_prepare_inputs(cfg):
@@ -1403,6 +1342,8 @@ def pipeline_prepare_inputs(cfg):
     manifest = folder / 'input_manifest.json'
     if manifest.exists():
         meta = json.loads(manifest.read_text())
+        if meta.get('universe', '500') != cfg.index:
+            raise ValueError('缓存股票池与请求的股票池不同。')
         if meta['factor_signature'] != pipeline_factor_signature():
             raise ValueError('因子定义已经变化，需重新生成输入缓存。')
         if meta['trading_input_signature'] != trading_input_manifest(cfg.data_dir)['signature']:
@@ -1413,8 +1354,24 @@ def pipeline_prepare_inputs(cfg):
         PIPELINE_LOG.info('已验证并复用9因子及实际交易状态输入；不复用模型预测。')
     else:
         inner = replace(cfg, output_dir=folder)
-        calendar, symbols, daily, eligible, industry, cap = research_load_data(inner, '500')
-        rolling = research_calculate_factors(inner, calendar, symbols, daily)
+        shared = folder.parent.parent / 'AllA/input'
+        if cfg.index in ('300', '500') and (shared / 'rolling_components.parquet').exists():
+            # 个股时间序列可以复用；市值中性化及截面标准化必须在当前池内重算。
+            daily = pd.read_parquet(shared / 'daily_market.parquet')
+            calendar = pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
+            universe = DataLoader(cfg).universe(calendar)
+            universe.SecuCode = trading_canonical(universe.SecuCode)
+            universe = universe.drop_duplicates(KEYS)
+            symbols = sorted(universe.SecuCode.unique())
+            daily = daily[daily.SecuCode.isin(symbols)].copy()
+            daily.to_parquet(folder / 'daily_market.parquet', index=False)
+            eligible = daily.loc[daily.SignalEligible, KEYS].merge(universe, on=KEYS, validate='one_to_one')
+            industry, cap = trading_industry_cap(DataLoader(cfg), calendar, symbols)
+            rolling = pd.read_parquet(shared / 'rolling_components.parquet')
+            rolling = rolling[rolling.SecuCode.isin(symbols)]
+        else:
+            calendar, symbols, daily, eligible, industry, cap = research_load_data(inner, cfg.index)
+            rolling = research_calculate_factors(inner, calendar, symbols, daily)
         features = research_preprocess(rolling, eligible, daily, cap)[KEYS + list(PIPELINE_CANDIDATES)]
         features.to_parquet(folder / 'features.parquet', index=False)
         pipeline_write_input_manifest(cfg, 'fresh raw-minute calculation with current factor definitions')
@@ -1431,63 +1388,298 @@ def pipeline_export(features, factor, period, market, cfg, destination, low):
         row['Role'] = 'Long' if row['Portfolio'] == f'Group{cfg.n_groups}' else 'LongShort' if row['Portfolio'] == 'TheoreticalLS' else 'Decile'
     return rows
 
-def pipeline_run(cfg, with_models=True, models_only=False, prepare_only=False, predict_start='2017-02-01', trials=96, finalists=16):
-    output = Path(cfg.output_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    if cfg.n_groups != 10:
-        raise ValueError('当前提交版固定为10分组。')
-    if not np.isclose(cfg.one_way_fee, 0.0015):
-        raise ValueError('当前提交版固定每次买卖各0.0015，完整往返0.003。')
-    features, daily = pipeline_prepare_inputs(cfg)
-    if prepare_only:
-        return
-    calendar = pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
-    full_dates = calendar[calendar >= pd.Timestamp('2016-01-29')]
-    full_market = Market.from_daily(daily, full_dates)
-    feature_coverage = features.groupby('TradingDay')[list(PIPELINE_CANDIDATES)].count()
-    feature_coverage.to_csv(output / 'feature_coverage.csv')
-    pool = None
-    jobs = {}
-    if with_models:
-        full_history = Market.from_daily(daily, calendar)
-        pool = ThreadPoolExecutor(max_workers=3)
-        for name, days in PERIODS.items():
-            isolated = replace(full_history, dates=pd.DatetimeIndex(full_history.dates.to_numpy(copy=True)), symbols=pd.Index(full_history.symbols.to_numpy(copy=True)))
-            isolated_features = features.copy(deep=True)
-            jobs[name] = pool.submit(tuning_walk_forward, isolated_features, isolated, days, output / 'models' / name, predict_start, 12, list(PIPELINE_CANDIDATES), trials, finalists)
-    records = []
-    if not models_only:
-        for factor in PIPELINE_CANDIDATES:
-            for period in list(PERIODS) + ['MonthEnd']:
-                PIPELINE_LOG.info('10分组单因子 %s / %s', factor, period)
-                records += pipeline_export(features, factor, period, full_market, cfg, output / 'factors' / factor / period, RESEARCH_LOW_IS_LONG[factor])
-        pd.DataFrame(records).to_csv(output / 'factor_summary.csv', index=False)
-    if with_models:
-        comparison = []
-        test_dates = calendar[calendar >= pd.Timestamp(predict_start)]
-        market = Market.from_daily(daily, test_dates)
-        try:
-            for name, future in jobs.items():
-                pred = future.result()
-                keys = pred.loc[pred.Pred_Score.notna(), KEYS]
-                common = features.merge(keys, on=KEYS, validate='one_to_one')
-                for factor in PIPELINE_CANDIDATES:
-                    comparison += pipeline_export(common, factor, name, market, cfg, output / 'oos' / factor / name, RESEARCH_LOW_IS_LONG[factor])
-                comparison += pipeline_export(pred, 'Pred_Score', name, market, cfg, output / 'oos/Pred_Score' / name, False)
-        finally:
-            pool.shutdown(wait=True, cancel_futures=True)
-        pd.DataFrame(comparison).to_csv(output / 'oos_summary.csv', index=False)
-    source_names = [Path(__file__).name]
-    manifest = {'universe': 'point-in-time CSI500', 'candidate_factors': PIPELINE_CANDIDATES, 'groups': 10, 'one_way_fee': cfg.one_way_fee, 'round_trip_fee': 2 * cfg.one_way_fee, 'ls_leg_weight': cfg.ls_leg_weight, 'signal_start': '2016-01-29', 'predict_start': predict_start, 'end': str(full_dates[-1].date()), 'parameter_candidates_per_search': trials, 'finalists_per_search': finalists, 'tuning_frequency': 'quarterly', 'refit_frequency': 'monthly', 'inner_folds': 3, 'seed': TUNING_SEED, 'cache_manifest': json.loads((output / 'input/input_manifest.json').read_text()), 'sources': {name: pipeline_file_hash(Path(__file__).parent / name) for name in source_names}}
-    (output / 'run_config.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
-    PIPELINE_LOG.info('完整实验完成：%s', output)
 
 # 对外公开的当前九因子目录
 FACTORS = RESEARCH_FACTORS
+UNIVERSE_FOLDERS = {'300': 'CSI300', '500': 'CSI500', 'all': 'AllA'}
+UNIVERSE_NAMES = {'300': '沪深300', '500': '中证500', 'all': '全部A股'}
+
+
+
+
+# 固定训练/回测划分：2016--2017训练，2018冻结模型评估。
+TRAIN_START = pd.Timestamp('2016-01-01')
+TEST_START = pd.Timestamp('2018-01-01')
+VALIDATION_START = pd.Timestamp('2017-01-01')
+VALIDATION_END = pd.Timestamp('2017-09-30')
+PROTOCOL = 'fixed_train_2016_2017_test_2018_v1'
+
+
+def fixed_training_sample(features, training_market, days):
+    """标签生成行情本身截止2017年；不读取2018标签后再筛除。"""
+    assert training_market.dates.max() < TEST_START
+    history = features[features.TradingDay.ge(TRAIN_START)&features.TradingDay.lt(TEST_START)].copy()
+    history = history[history[list(FACTORS)].notna().sum(axis=1)>=3]
+    labels = model_make_labels(history,training_market,days)
+    train = history.merge(labels,on=KEYS,validate='one_to_one')
+    train = train[train.LabelEnd.lt(TEST_START)&train.Target.notna()].copy()
+    assert train.TradingDay.min()>=TRAIN_START and train.LabelEnd.max()<TEST_START
+    return train,history
+
+
+def fixed_validation_folds(train):
+    """2017前三季度扩展时间验证，折内训练标签须已在季度开始前实现。"""
+    folds=[]
+    for start,end in [('2017-01-01','2017-03-31'),('2017-04-01','2017-06-30'),('2017-07-01','2017-09-30')]:
+        start,end=pd.Timestamp(start),pd.Timestamp(end)
+        tr=train[train.TradingDay.lt(start)&train.LabelEnd.lt(start)].copy()
+        va=train[train.TradingDay.between(start,end)].copy()
+        if tr.TradingDay.nunique()<160 or va.TradingDay.nunique()<40:
+            raise ValueError('固定时间折历史不足。')
+        assert tr.LabelEnd.max()<start and va.LabelEnd.max()<TEST_START
+        folds.append((tr,va))
+    return folds
+
+
+def fixed_fit(train,parameters):
+    params=parameters.copy()
+    threshold=params.pop('corr_threshold')
+    budget=params.pop('max_features')
+    stats,corr=tuning_selector_statistics(train,list(FACTORS))
+    chosen,decisions=tuning_choose_features(stats,corr,threshold,budget)
+    model=XGBRegressor(**params,n_jobs=2,random_state=TUNING_SEED,
+                       objective='reg:squarederror',tree_method='hist',verbosity=0)
+    model.fit(train[chosen].astype('float32'),train.Target,sample_weight=tuning_sample_weights(train))
+    return model,chosen,decisions,corr
+
+
+def fixed_model(features,training_market,days,destination,trials=96,finalists=16):
+    destination=Path(destination)
+    destination.mkdir(parents=True,exist_ok=True)
+    train,history=fixed_training_sample(features,training_market,days)
+    folds=fixed_validation_folds(train)
+    LOG.info('%d日固定模型：2016--2017标签已实现样本%d行，%d候选/%d晋级',days,len(train),trials,finalists)
+    best=tuning_tune(train,list(FACTORS),destination/'tuning',trials,finalists,
+                     TUNING_SEED+days*100+2017,folds=folds)
+    forecasts=[]
+    fold_meta=[]
+    for fold,((tr,va),start,end) in enumerate(zip(folds,
+            ['2017-01-01','2017-04-01','2017-07-01'],['2017-03-31','2017-06-30','2017-09-30'])):
+        first=training_market.dates.searchsorted(pd.Timestamp(start))
+        seed=training_market.dates[first-1]
+        sample=history[history.TradingDay.between(seed,pd.Timestamp(end))].copy()
+        model,chosen,decisions,corr=fixed_fit(tr,best['parameters'])
+        pred=sample[KEYS].copy()
+        pred['Pred_Score']=model.predict(sample[chosen].astype('float32'))
+        pred.loc[sample[chosen].notna().sum(axis=1).to_numpy()==0,'Pred_Score']=np.nan
+        forecasts.append(pred)
+        fold_meta.append({'Fold':fold,'TrainStart':str(tr.TradingDay.min().date()),
+                          'TrainMaxLabelEnd':str(tr.LabelEnd.max().date()),'ValidationStart':start,
+                          'ValidationEnd':end,'SeedSignal':str(seed.date()),'Features':'|'.join(chosen)})
+    validation=pd.concat(forecasts,ignore_index=True).drop_duplicates(KEYS,keep='last').sort_values(KEYS)
+    validation.to_parquet(destination/'validation_predictions.parquet',index=False)
+    pd.DataFrame(fold_meta).to_csv(destination/'validation_refits.csv',index=False)
+    # 所有选型结束后用2016--2017完整已实现样本拟合一次；2018不重训、不早停。
+    model,chosen,decisions,corr=fixed_fit(train,best['parameters'])
+    model_path=destination/'model.json'
+    model.save_model(model_path)
+    frozen_hash=pipeline_file_hash(model_path)
+    test_seed=training_market.dates[-1]
+    sample=features[features.TradingDay.ge(test_seed)&features[list(FACTORS)].notna().sum(axis=1).ge(3)].copy()
+    pred=sample[KEYS].copy()
+    pred['Pred_Score']=model.predict(sample[chosen].astype('float32'))
+    pred.loc[sample[chosen].notna().sum(axis=1).to_numpy()==0,'Pred_Score']=np.nan
+    assert pipeline_file_hash(model_path)==frozen_hash
+    pred.to_parquet(destination/'test_predictions.parquet',index=False)
+    decisions['TrainMaxLabelEnd']=train.LabelEnd.max()
+    decisions.to_csv(destination/'feature_selection.csv',index=False)
+    corr.to_csv(destination/'training_correlation.csv')
+    pd.DataFrame({'Feature':chosen,'Importance':model.feature_importances_}).to_csv(destination/'feature_importance.csv',index=False)
+    metadata={'protocol':PROTOCOL,'horizon':days,'training_start':'2016-01-01','training_end':'2017-12-31',
+              'train_rows':len(train),'train_days':train.TradingDay.nunique(),
+              'train_signal_start':str(train.TradingDay.min().date()),'train_signal_end':str(train.TradingDay.max().date()),
+              'max_training_label_end':str(train.LabelEnd.max().date()),'test_seed_signal':str(test_seed.date()),
+              'test_start':'2018-01-02','test_end':'2018-12-28','selected_features':chosen,
+              'parameters':best['parameters'],'validation_folds':3,'validation_refits':3,'final_fits':1,
+              'test_refits':0,'test_early_stopping':False,'model_sha256':frozen_hash,
+              'xgboost_version':xgboost.__version__,'validation_prediction_rows':len(validation),'test_prediction_rows':len(pred)}
+    (destination/'model_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
+    LOG.info('%d日固定模型完成：%s；2018全年预测%d行，未重训',days,'|'.join(chosen),len(pred))
+    return {'validation':validation,'test':pred}
+
+
+def study_market(daily,study):
+    calendar=pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
+    start,end=(VALIDATION_START,VALIDATION_END) if study=='validation' else (TEST_START,pd.Timestamp('2018-12-31'))
+    first=calendar.searchsorted(start)
+    dates=calendar[(calendar>=calendar[first-1])&(calendar<=end)]
+    return Market.from_daily(daily,dates)
+
+
+def pool_eligible(daily,cfg):
+    eligible=daily.loc[daily.SignalEligible,KEYS].copy()
+    if cfg.index in ('300','500'):
+        universe=DataLoader(cfg).universe(pd.DatetimeIndex(sorted(daily.TradingDay.unique())))
+        universe.SecuCode=trading_canonical(universe.SecuCode)
+        eligible=eligible.merge(universe.drop_duplicates(KEYS),on=KEYS,validate='one_to_one')
+    return eligible
+
+
+def fixed_pool(cfg,trials=96,finalists=16):
+    if cfg.n_groups!=10 or not np.isclose(cfg.one_way_fee,.0015):
+        raise ValueError('当前固定实验使用10分组、买卖各0.0015。')
+    root=Path(cfg.output_dir)
+    features,daily=pipeline_prepare_inputs(cfg)
+    eligible=pool_eligible(daily,cfg)
+    calendar=pd.DatetimeIndex(sorted(daily.TradingDay.unique()))
+    training_market=Market.from_daily(daily,calendar[(calendar>=TRAIN_START)&(calendar<TEST_START)])
+    markets={study:study_market(daily,study) for study in ['validation','test']}
+    # 全市场同时最多两个调参任务，避免大量时间折在内存中重叠。
+    with ThreadPoolExecutor(max_workers=2 if cfg.index=='all' else 3) as executor:
+        jobs={period:executor.submit(fixed_model,features.copy(deep=True),
+              replace(training_market,dates=pd.DatetimeIndex(training_market.dates.to_numpy(copy=True)),
+                      symbols=pd.Index(training_market.symbols.to_numpy(copy=True))),
+              days,root/'models'/period,trials,finalists) for period,days in PERIODS.items()}
+        records={study:[] for study in markets}
+        benchmark_records=[]
+        admitted=features[features[list(FACTORS)].notna().sum(axis=1)>=3]
+        for study,market in markets.items():
+            sample=admitted[admitted.TradingDay.isin(market.dates)]
+            for period,days in PERIODS.items():
+                schedule=market.dates[::days]
+                groups=eligible[eligible.TradingDay.isin(schedule)]
+                folder=root/'benchmarks'/study/period
+                folder.mkdir(parents=True,exist_ok=True)
+                for cost,current in [('net',cfg),('gross',replace(cfg,one_way_fee=0))]:
+                    ledger,trades=single_long_ledger(groups,schedule,market,current)
+                    ledger.to_csv(folder/f'{cost}_ledger.csv',index=False)
+                    trades.to_parquet(folder/f'{cost}_trades.parquet',index=False)
+                    benchmark_records.append({'Universe':cfg.index,'Study':study,'Period':period,'Cost':cost,
+                        'MeanSignalStocks':groups.groupby('TradingDay').size().mean(),**performance(ledger.Return,cfg)})
+                for factor in FACTORS:
+                    records[study]+=pipeline_export(sample,factor,period,market,cfg,root/study/factor/period,RESEARCH_LOW_IS_LONG[factor])
+        for period,future in jobs.items():
+            predictions=future.result()
+            for study,market in markets.items():
+                records[study]+=pipeline_export(predictions[study],'Pred_Score',period,market,cfg,
+                                               root/study/'Pred_Score'/period,False)
+    for study in markets:
+        pd.DataFrame(records[study]).to_csv(root/f'{study}_summary.csv',index=False)
+    pd.DataFrame(benchmark_records).to_csv(root/'benchmark_summary.csv',index=False)
+    metadata={'protocol':PROTOCOL,'universe':cfg.index,'training':['2016-01-01','2017-12-31'],
+              'test':['2018-01-02','2018-12-28'],'selection_validation':['2017-01-03','2017-09-29'],
+              'groups':10,'candidate_factors':list(FACTORS),'one_way_fee':.0015,'round_trip_fee':.003,
+              'trials':trials,'finalists':finalists,'test_refits':0,'sources':{Path(__file__).name:pipeline_file_hash(__file__)}}
+    (root/'run_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
+    LOG.info('%s固定实验完成：2016--2017训练，2018回测',UNIVERSE_NAMES[cfg.index])
+
+
+def choose_validation_cases(validation):
+    """此函数不接受2018收益；选池和期限只比较训练期验证的G10收益。"""
+    return validation.sort_values(['Factor','AnnualReturn','Universe','Period'],
+                                  ascending=[True,False,True,True]).drop_duplicates('Factor').copy()
+
+
+def fixed_comparison(root=BASE/'results'):
+    root=Path(root)
+    candidates={study:[] for study in ['validation','test']}
+    deciles=[]
+    benchmarks=[]
+    year_rows=[]
+    monthly_rows=[]
+    for universe,slug in UNIVERSE_FOLDERS.items():
+        current=root/slug
+        bm=pd.read_csv(current/'benchmark_summary.csv')
+        bm['Universe']=universe
+        benchmarks.append(bm)
+        for study in candidates:
+            summary=pd.read_csv(current/f'{study}_summary.csv')
+            for factor in [*FACTORS,'Pred_Score']:
+                for period in PERIODS:
+                    rows=summary[summary.Factor.eq(factor)&summary.Period.eq(period)]
+                    long=rows[rows.Portfolio.eq('Group10')].iloc[0]
+                    ls=rows[rows.Portfolio.eq('TheoreticalLS')].iloc[0]
+                    b=bm[bm.Study.eq(study)&bm.Period.eq(period)&bm.Cost.eq('net')].iloc[0]
+                    assert long.Days==b.Days
+                    candidates[study].append({'Universe':universe,'Factor':factor,'Period':period,
+                        'AnnualReturn':long.AnnualReturn,'TotalReturn':long.TotalReturn,'Sharpe':long.Sharpe,
+                        'BenchmarkAnnual':b.AnnualReturn,'BenchmarkTotal':b.TotalReturn,
+                        'RelativeAnnual':(long.FinalNAV/b.FinalNAV)**(250/long.Days)-1,
+                        'RelativeTotal':long.FinalNAV/b.FinalNAV-1,'LSAnnual':ls.AnnualReturn,'LSTotal':ls.TotalReturn,
+                        'LSSharpe':ls.Sharpe,'Days':long.Days,'MeanSignalStocks':long.MeanSignalStocks,
+                        'BenchmarkMeanStocks':b.MeanSignalStocks,'CoverageRatio':long.MeanSignalStocks/b.MeanSignalStocks})
+                    for i in range(1,11):
+                        row=rows[rows.Portfolio.eq(f'Group{i}')].iloc[0]
+                        deciles.append({'Study':study,'Universe':universe,'Factor':factor,'Period':period,'Group':i,
+                                        'AnnualReturn':row.AnnualReturn,'TotalReturn':row.TotalReturn,'Sharpe':row.Sharpe})
+        for period in PERIODS:
+            for cost in ['net','gross']:
+                frame=pd.read_csv(current/'benchmarks/test'/period/f'{cost}_ledger.csv',parse_dates=['TradingDay'])
+                year_rows.append({'Universe':universe,'Period':period,'Cost':cost,'Year':2018,
+                                  'Return':np.prod(1+frame.Return)-1})
+                for month,part in frame.groupby(frame.TradingDay.dt.to_period('M')):
+                    monthly_rows.append({'Universe':universe,'Period':period,'Cost':cost,'Month':str(month),
+                                         'Return':np.prod(1+part.Return)-1})
+    validation=pd.DataFrame(candidates['validation'])
+    test=pd.DataFrame(candidates['test'])
+    selected=choose_validation_cases(validation)[['Universe','Factor','Period','AnnualReturn']].rename(columns={'AnnualReturn':'SelectionAnnual'})
+    # 只有选型已冻结后才连接2018评价指标。
+    selected=selected.merge(test,on=['Universe','Factor','Period'],validate='one_to_one')
+    selected['Selection']='2017 Q1-Q3 chronological training validation G10 net CAGR; frozen before 2018'
+    markets={}
+    for index,row in selected.iterrows():
+        current=root/UNIVERSE_FOLDERS[row.Universe]
+        if row.Universe not in markets:
+            daily=pd.read_parquet(current/'input/daily_market.parquet')
+            markets[row.Universe]=study_market(daily,'test')
+        market=markets[row.Universe]
+        folder=current/'test'/row.Factor/row.Period
+        groups=pd.read_parquet(folder/'signal_groups.parquet')
+        groups=groups[groups.Group.eq(10)]
+        cfg=Config(index=row.Universe,output_dir=current)
+        net,_=single_long_ledger(groups,market.dates[::PERIODS[row.Period]],market,cfg,'Group10')
+        expected=pd.read_csv(folder/'daily_ledger.csv')
+        np.testing.assert_allclose(net.NAV,expected.loc[expected.Portfolio.eq('Group10'),'NAV'],rtol=1e-10,atol=1e-12)
+        gross,_=single_long_ledger(groups,market.dates[::PERIODS[row.Period]],market,replace(cfg,one_way_fee=0),'Group10')
+        gross.to_csv(folder/'long_gross.csv',index=False)
+        selected.loc[index,'GrossAnnual']=performance(gross.Return,cfg)['AnnualReturn']
+        selected.loc[index,'GrossTotal']=gross.NAV.iloc[-1]-1
+    comparison=validation.rename(columns={'AnnualReturn':'ValidationAnnual'})[['Universe','Factor','Period','ValidationAnnual']].merge(test,on=['Universe','Factor','Period'],validate='one_to_one')
+    comparison.to_csv(root/'universe_comparison.csv',index=False)
+    validation.to_csv(root/'validation_candidates.csv',index=False)
+    selected.to_csv(root/'selected_cases.csv',index=False)
+    pd.DataFrame(deciles).to_csv(root/'decile_returns.csv',index=False)
+    pd.concat(benchmarks,ignore_index=True).to_csv(root/'benchmark_summary.csv',index=False)
+    pd.DataFrame(year_rows).to_csv(root/'benchmark_year_returns.csv',index=False)
+    pd.DataFrame(monthly_rows).to_csv(root/'benchmark_month_returns.csv',index=False)
+    # 保留中证500固定5日组合作为解释十组普遍亏损的参照，而不复用旧滚动模型。
+    current=root/'CSI500'
+    if '500' not in markets:
+        markets['500']=study_market(pd.read_parquet(current/'input/daily_market.parquet'),'test')
+    folder=current/'test/Pred_Score/Weekly'
+    groups=pd.read_parquet(folder/'signal_groups.parquet')
+    gross,_=single_long_ledger(groups[groups.Group.eq(10)],markets['500'].dates[::5],markets['500'],Config(one_way_fee=0),'Group10')
+    gross.to_csv(folder/'long_gross.csv',index=False)
+    reference=test[test.Universe.eq('500')&test.Factor.eq('Pred_Score')&test.Period.eq('Weekly')].iloc[0].to_dict()
+    reference['GrossAnnual']=performance(gross.Return,Config())['AnnualReturn']
+    reference['GrossTotal']=gross.NAV.iloc[-1]-1
+    (root/'csi500_loss_diagnostic.json').write_text(json.dumps(reference,ensure_ascii=False,indent=2))
+    metadata={'protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
+              'universes':UNIVERSE_FOLDERS,'candidate_factors':list(FACTORS),'groups':10,'round_trip_fee':.003,
+              'test_refits':0,'selection_uses_test_returns':False,'selection_period':['2017-01-03','2017-09-29'],
+              'selection_metric':'chronological training-validation G10 net CAGR',
+              'sources':{Path(__file__).name:pipeline_file_hash(__file__)}}
+    (root/'run_config.json').write_text(json.dumps(metadata,ensure_ascii=False,indent=2))
+    LOG.info('固定2018回测比较完成：选池/期限完全来自2017训练期验证。')
+
+
+def run_universe_comparison(cfg,trials=96,finalists=16):
+    for index in ['300','500','all']:
+        current=replace(cfg,index=index,output_dir=Path(cfg.output_dir)/UNIVERSE_FOLDERS[index])
+        marker=Path(current.output_dir)/'run_config.json'
+        ready=marker.exists() and json.loads(marker.read_text()).get('protocol')==PROTOCOL
+        if not ready:
+            fixed_pool(current,trials,finalists)
+        else:
+            pipeline_prepare_inputs(current)
+            metadata=json.loads(marker.read_text())
+            assert metadata['trials']==trials and metadata['finalists']==finalists
+            LOG.info('复用同口径固定实验：%s',UNIVERSE_NAMES[index])
+    fixed_comparison(cfg.output_dir)
 
 
 def run_self_tests(output_dir=BASE / "results"):
-    """运行与合并前一致的65项因子、账本、训练边界测试。"""
+    """运行71项因子、账本、冻结训练与基准一致性测试。"""
     import io
     import unittest
     import numpy as np
@@ -2184,8 +2376,98 @@ def run_self_tests(output_dir=BASE / "results"):
             groups, _ = signal_groups(features, 'Pred_Score', self.dates, 5, low_is_long=False)
             first = groups[groups.TradingDay.eq(self.dates[0])]
             self.assertEqual(set(first[first.Group.eq(10)].SecuCode), set(self.symbols[-2:]))
+    class BenchmarkTests(unittest.TestCase):
+        def test_single_long_matches_group_book_with_fees_and_blocked_orders(self):
+            dates = pd.bdate_range('2017-01-02',periods=15)
+            symbols = pd.Index([f'{i:06d}' for i in range(20)])
+            prices = 1+np.arange(15)[:,None]*np.linspace(.001,.005,20)
+            allowed = np.ones_like(prices,dtype=bool)
+            market = Market(dates,symbols,prices,prices.copy(),allowed.copy(),allowed.copy(),~allowed)
+            market.buy[1,0] = False
+            market.sell[6,1] = False
+            features = pd.DataFrame([{'TradingDay':d,'SecuCode':s,'factor':i}
+                                     for d in dates for i,s in enumerate(symbols)])
+            groups,schedule = signal_groups(features,'factor',dates,5)
+            expected,_ = backtest(groups,schedule,market,Config())
+            actual,_ = single_long_ledger(groups[groups.Group.eq(10)],schedule,market,Config(),'Group10')
+            expected = expected[expected.Portfolio.eq('Group10')].reset_index(drop=True)
+            pd.testing.assert_frame_equal(actual,expected)
+
+        def test_index_membership_routes_to_correct_historical_file(self):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root/'指数权重').mkdir()
+                date = pd.Timestamp('2017-01-03')
+                for code,stock in [('000300','600000'),('000905','000001')]:
+                    pd.DataFrame({'date':[date],'symbol':[stock]}).to_parquet(root/'指数权重'/f'index_wt_{code}.parquet')
+                a = DataLoader(Config(data_dir=root,index='300')).universe(pd.DatetimeIndex([date]))
+                b = DataLoader(Config(data_dir=root,index='500')).universe(pd.DatetimeIndex([date]))
+                self.assertEqual(a.SecuCode.tolist(),['600000'])
+                self.assertEqual(b.SecuCode.tolist(),['000001'])
+
+    class FixedProtocolTests(unittest.TestCase):
+        def fixture(self):
+            rng=np.random.default_rng(71)
+            dates=pd.bdate_range('2016-01-04','2018-12-28')
+            symbols=pd.Index([f'{i:06d}' for i in range(30)])
+            prices=10*np.cumprod(1+rng.normal(0,.003,(len(dates),30)),axis=0)
+            flags=np.ones_like(prices,dtype=bool)
+            keep=dates<TEST_START
+            market=Market(dates[keep],symbols,prices[keep].copy(),prices[keep].copy(),
+                          flags[keep].copy(),flags[keep].copy(),~flags[keep])
+            values=rng.normal(size=(len(dates)*30,9))
+            features=pd.DataFrame(values,columns=FACTORS)
+            features['TradingDay']=np.repeat(dates,30)
+            features['SecuCode']=np.tile(symbols,len(dates))
+            return features,market
+
+        def test_training_ends_before_2018_and_future_features_cannot_change_it(self):
+            features,market=self.fixture()
+            before,_=fixed_training_sample(features,market,20)
+            features.loc[features.TradingDay.ge(TEST_START),list(FACTORS)]*=1000
+            after,_=fixed_training_sample(features,market,20)
+            pd.testing.assert_frame_equal(before,after)
+            self.assertTrue(before.LabelEnd.lt(TEST_START).all())
+            self.assertTrue(before.TradingDay.ge(TRAIN_START).all())
+
+        def test_actual_quarter_validation_purges_unrealized_labels(self):
+            features,market=self.fixture()
+            train,_=fixed_training_sample(features,market,20)
+            folds=fixed_validation_folds(train)
+            self.assertEqual(len(folds),3)
+            for (tr,va),start in zip(folds,['2017-01-01','2017-04-01','2017-07-01']):
+                self.assertLess(tr.LabelEnd.max(),pd.Timestamp(start))
+                self.assertGreaterEqual(va.TradingDay.min(),pd.Timestamp(start))
+                self.assertLess(va.LabelEnd.max(),TEST_START)
+
+        def test_pool_selection_uses_validation_instead_of_test_returns(self):
+            rows=pd.DataFrame({'Factor':['a','a','b','b'],'Universe':['300','500','300','all'],
+                               'Period':['Weekly']*4,'AnnualReturn':[.2,.1,-.1,.05],
+                               'TestReturn':[-100,100,100,-100]})
+            before=choose_validation_cases(rows)[['Factor','Universe','Period']].reset_index(drop=True)
+            rows.TestReturn*=-100
+            after=choose_validation_cases(rows)[['Factor','Universe','Period']].reset_index(drop=True)
+            pd.testing.assert_frame_equal(before,after)
+            self.assertEqual(before.Universe.tolist(),['300','all'])
+
+        def test_frozen_model_weights_do_not_depend_on_2018_features(self):
+            features,market=self.fixture()
+            with tempfile.TemporaryDirectory() as directory:
+                a,b=Path(directory)/'a',Path(directory)/'b'
+                fixed_model(features,market,5,a,trials=4,finalists=1)
+                features.loc[features.TradingDay.ge(TEST_START),list(FACTORS)]*=100
+                fixed_model(features,market,5,b,trials=4,finalists=1)
+                self.assertEqual(pipeline_file_hash(a/'model.json'),pipeline_file_hash(b/'model.json'))
+                one=json.loads((a/'model_config.json').read_text())
+                two=json.loads((b/'model_config.json').read_text())
+                self.assertEqual(one['parameters'],two['parameters'])
+                self.assertEqual(one['test_refits'],0)
+                self.assertEqual(one['selected_features'],two['selected_features'])
+                pd.testing.assert_frame_equal(pd.read_parquet(a/'validation_predictions.parquet'),
+                                              pd.read_parquet(b/'validation_predictions.parquet'))
+
     suite = unittest.TestSuite()
-    for case in [CorrectedPipelineTests, PaperConstructionTests, HistoricalTradingDataTests, TunedModelTests, ModelTimingTests]:
+    for case in [CorrectedPipelineTests, PaperConstructionTests, HistoricalTradingDataTests, TunedModelTests, ModelTimingTests, BenchmarkTests, FixedProtocolTests]:
         suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(case))
     stream = io.StringIO()
     result = unittest.TextTestRunner(stream=stream, verbosity=2).run(suite)
@@ -2199,237 +2481,356 @@ def run_self_tests(output_dir=BASE / "results"):
     return result.testsRun
 
 
+# 同池全体等权基准、三池比较与事后选图
+def single_long_ledger(groups, schedule, market, cfg, name='PoolEqualWeight'):
+    """用相同订单、持仓和费用引擎模拟一个多头组合；不读取未来可交易性。"""
+    book = Portfolio(market.symbols, cfg, name)
+    group_map = {day: frame for day, frame in groups.groupby('TradingDay')}
+    dates = market.dates
+    first = dates.get_loc(schedule[0])
+    execution = {dates[dates.get_loc(day)+1]: day for day in schedule
+                 if day in dates and dates.get_loc(day)+1 < len(dates)-1}
+    previous_nav = 1.
+    rows = []
+    for t in range(first+1, len(dates)):
+        day = dates[t]
+        opening = np.where(np.isfinite(market.open[t]), market.open[t], market.close[t-1])
+        closing = np.where(np.isfinite(market.close[t]), market.close[t], market.close[t-1])
+        weights = None
+        if day in execution:
+            weights = np.zeros(len(market.symbols))
+            frame = group_map.get(execution[day])
+            if frame is not None and len(frame):
+                columns = market.symbols.get_indexer(frame.SecuCode)
+                if (columns < 0).any():
+                    raise ValueError('等权信号股票不在行情中。')
+                weights[columns] = 1/len(columns)
+        if t == len(dates)-1:
+            weights = np.zeros(len(market.symbols))
+        stats = book.execute(opening, market.buy[t], market.sell[t], day, weights,
+                             None if market.increase is None else market.increase[t])
+        nav = book.value(closing)
+        held = np.abs(book.units) > 1e-14
+        values = book.units*np.nan_to_num(closing)
+        rows.append({'TradingDay': day, 'Portfolio': name, 'NAV': nav, 'Return': nav/previous_nav-1,
+                     'Cash': book.cash, 'LongValue': np.maximum(values, 0).sum(), 'ShortValue': 0.,
+                     'Positions': int(held.sum()), 'StalePositions': int((held&market.stale[t]).sum()),
+                     'PendingReductions': int(np.isfinite(book.pending).sum()), 'BorrowCost': 0., **stats})
+        previous_nav = nav
+    columns = ['TradingDay','Portfolio','SecuCode','DeltaUnits','AdjPrice','Notional','Cost']
+    return pd.DataFrame(rows), pd.DataFrame(book.trades, columns=columns)
+
+
+
+
+
+
 # 报告图表及当前实验结果核验
 def _render_report_contents():
-    """从当前唯一results目录生成报告表格/图像，并逐项核对账本与时间隔离。"""
-    from pathlib import Path
-    import hashlib
-    import json
-    import os
+    """固定2016--2017训练、2018测试报告；选型函数只读取训练期验证。"""
     import re
-    import sys
-    import numpy as np
-    import pandas as pd
-    HERE = BASE / 'report'
-    ROOT = HERE.parent
-    R = ROOT / 'results'
-    for p in [HERE / 'tables', HERE / 'figures']:
-        p.mkdir(parents=True, exist_ok=True)
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
-    plt.rcParams.update({'font.size': 9, 'axes.titlesize': 10, 'legend.fontsize': 7, 'pdf.fonttype': 42, 'axes.spines.right': False, 'axes.spines.top': False})
-    NAMES = {'HF_SmartMoney': 'SmartMoney', 'HF_CPV': 'CPV', 'HF_CDPDP': 'CDPDP-prime', 'HF_IdealAmplitude': 'IdealAmplitude', 'HF_IdealReversal': 'IdealReversal', 'HF_CDPP': 'CDPP', 'HF_CDPDP4': 'CDPDP-4', 'HF_LowAmpMomentum': 'LowAmpMomentum', 'HF_Skewness': 'Skewness', 'Pred_Score': 'XGBoost'}
-    TEX = {**NAMES, 'HF_CDPDP': 'CDPDP$^{\\prime}$'}
-    FREQ = {'Weekly': '5日', 'BiWeekly': '10日', 'Monthly': '20日', 'MonthEnd': '自然月'}
-    full = pd.read_csv(R / 'factor_summary.csv')
-    oos = pd.read_csv(R / 'oos_summary.csv')
-    config = json.loads((R / 'run_config.json').read_text())
-    assert config['groups'] == 10 and config['round_trip_fee'] == 0.003
-    for name, digest in config['sources'].items():
-        assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest, name
-    assert set(full.Factor) == set(RESEARCH_FACTORS) and len(RESEARCH_FACTORS) == 9
-    assert not any(('Tail' in f or 'Legacy' in f for f in full.Factor.unique()))
+    R,HERE=BASE/'results',BASE/'report'
+    plt.rcParams.update({'font.size':10,'axes.titlesize':10,'legend.fontsize':8,'pdf.fonttype':42,
+                         'axes.spines.right':False,'axes.spines.top':False})
+    names={'HF_SmartMoney':'SmartMoney','HF_CPV':'CPV','HF_CDPDP':'CDPDP-prime',
+           'HF_IdealAmplitude':'IdealAmplitude','HF_IdealReversal':'IdealReversal','HF_CDPP':'CDPP',
+           'HF_CDPDP4':'CDPDP-4','HF_LowAmpMomentum':'LowAmpMomentum','HF_Skewness':'Skewness','Pred_Score':'XGBoost'}
+    tex={**names,'HF_CDPDP':r'CDPDP$^{\prime}$'}
+    freq={'Weekly':'5日','BiWeekly':'10日','Monthly':'20日'}
+    config=json.loads((R/'run_config.json').read_text())
+    assert config['protocol']==PROTOCOL and not config['selection_uses_test_returns'] and config['test_refits']==0
+    assert config['round_trip_fee']==.003 and config['groups']==10
+    for name,digest in config['sources'].items():
+        assert pipeline_file_hash(BASE/name)==digest,name
+    comparison=pd.read_csv(R/'universe_comparison.csv',dtype={'Universe':str})
+    validation=pd.read_csv(R/'validation_candidates.csv',dtype={'Universe':str})
+    selected=pd.read_csv(R/'selected_cases.csv',dtype={'Universe':str}).set_index('Factor').loc[[*FACTORS,'Pred_Score']].reset_index()
+    expected=choose_validation_cases(validation)[['Factor','Universe','Period']].sort_values('Factor').reset_index(drop=True)
+    actual=selected[['Factor','Universe','Period']].sort_values('Factor').reset_index(drop=True)
+    pd.testing.assert_frame_equal(expected,actual)
+    assert len(comparison)==90 and len(selected)==10
+    benchmark=pd.read_csv(R/'benchmark_summary.csv',dtype={'Universe':str})
+    monthly=pd.read_csv(R/'benchmark_month_returns.csv',dtype={'Universe':str})
+    reference=json.loads((R/'csi500_loss_diagnostic.json').read_text())
+    counters={'series':0,'trades':0,'ledger_rows':0}
+    selections=[]
+    models=[]
+    parameters=[]
+    searches=coarse_fits=fine_fits=0
+    summaries={}
 
-    def pick(frame, factor, period, portfolio):
-        return frame[frame.Factor.eq(factor) & frame.Period.eq(period) & frame.Portfolio.eq(portfolio)].iloc[0]
-
-    def pct(x):
-        return f'{x * 100:.2f}\\%'
-
-    def line(*values):
-        return ' & '.join((str(v) for v in values)) + ' \\\\' + '\n'
-
-    def table(name, text):
-        (HERE / 'tables' / f'{name}.tex').write_text(text)
-
-    def save(fig, name):
-        fig.savefig(HERE / 'figures' / f'{name}.pdf', bbox_inches='tight')
-        fig.savefig(HERE / 'figures' / f'{name}.png', bbox_inches='tight', dpi=150)
+    def pct(value):return f'{value*100:.2f}\\%'
+    def line(*values):return ' & '.join(str(v) for v in values)+r' \\'+'\n'
+    def table(name,text):(HERE/'tables'/f'{name}.tex').write_text(text)
+    def pick(frame,factor,period,portfolio):
+        return frame[frame.Factor.eq(factor)&frame.Period.eq(period)&frame.Portfolio.eq(portfolio)].iloc[0]
+    def save(fig,name):
+        fig.savefig(HERE/'figures'/f'{name}.pdf',bbox_inches='tight')
+        fig.savefig(HERE/'figures'/f'{name}.png',bbox_inches='tight',dpi=150)
         plt.close(fig)
-    counts = {'series': 0, 'trades': 0, 'ledger_rows': 0}
-    for parent, summary in [(R / 'factors', full), (R / 'oos', oos)]:
-        for factor, period in summary[['Factor', 'Period']].drop_duplicates().itertuples(index=False, name=None):
-            folder = parent / factor / period
-            trades = pd.read_parquet(folder / 'trades.parquet')
-            ledger = pd.read_csv(folder / 'daily_ledger.csv', parse_dates=['TradingDay'])
-            assert ledger.Portfolio.nunique() == 11
-            assert set(ledger.Portfolio) == {*[f'Group{i}' for i in range(1, 11)], 'TheoreticalLS'}
-            np.testing.assert_allclose(trades.Cost, trades.Notional * 0.0015, atol=1e-12)
-            groups = pd.read_parquet(folder / 'signal_groups.parquet')
-            if len(groups):
-                assert set(groups.Group.unique()) == set(range(1, 11))
-            for portfolio, f in ledger.groupby('Portfolio'):
-                np.testing.assert_allclose(f.NAV, f.Cash + f.LongValue - f.ShortValue, atol=1e-10)
-                np.testing.assert_allclose(f.NAV, np.cumprod(1 + f.Return), atol=1e-10)
-                b = trades[trades.Portfolio.eq(portfolio)].copy()
-                b['Flow'] = b.DeltaUnits * b.AdjPrice + b.Cost
-                flow = b.groupby('TradingDay').Flow.sum().reindex(f.TradingDay, fill_value=0).to_numpy()
-                np.testing.assert_allclose(f.Cash, 1 - np.cumsum(flow + f.BorrowCost.to_numpy()), atol=1e-10)
-                metrics = performance(f.Return, Config())
-                record = pick(summary, factor, period, portfolio)
-                for key in ['FinalNAV', 'AnnualReturn', 'Sharpe', 'MaxDrawdown']:
-                    np.testing.assert_allclose(record[key], metrics[key], rtol=1e-09, atol=1e-12)
-                counts['series'] += 1
-            counts['ledger_rows'] += len(ledger)
-            counts['trades'] += len(trades)
-    selection = []
-    training = []
-    best_rows = []
-    coarse_total = fine_total = 0
-    searches = 0
-    for name, days in PERIODS.items():
-        parent = R / 'models' / name
-        log = pd.read_csv(parent / 'training_log.csv', parse_dates=['Cutoff', 'MaxLabelEnd', 'TuningCutoff'])
-        assert len(log) == 23 and log.MaxLabelEnd.lt(log.Cutoff).all() and log.TuningCutoff.le(log.Cutoff).all()
-        log['Period'] = name
-        training.append(log)
-        decisions = pd.read_csv(parent / 'feature_selection.csv', parse_dates=['Cutoff', 'MaxLabelEnd'])
-        assert decisions.MaxLabelEnd.lt(decisions.Cutoff).all()
-        assert not any(('Tail' in f or 'Legacy' in f for f in decisions.Feature.unique()))
-        decisions['Period'] = name
-        selection.append(decisions)
-        for month, chosen in decisions[decisions.Selected].groupby('PredictionMonth'):
-            corr = pd.read_csv(parent / 'selection' / f'{month}_correlation.csv', index_col=0)
-            features = chosen.Feature.tolist()
-            threshold = chosen.CorrelationThreshold.iloc[0]
-            assert len(features) <= chosen.MaxFeatures.iloc[0]
-            for a in features:
-                for b in features:
-                    if a != b:
-                        assert abs(corr.loc[a, b]) < threshold + 1e-12
-        for folder in sorted((parent / 'tuning').iterdir()):
-            if not folder.is_dir():
-                continue
-            coarse = pd.read_csv(folder / 'coarse_trials.csv')
-            fine = pd.read_csv(folder / 'fine_trials.csv')
-            best = json.loads((folder / 'best_parameters.json').read_text())
-            assert len(coarse) == 96 and len(fine) == 48 and (fine.Fold.nunique() == 3)
-            cutoff = log.loc[log.TuningQuarter.eq(folder.name), 'TuningCutoff'].min()
-            assert pd.Timestamp(best['max_training_label_end']) < cutoff
-            splits = pd.read_csv(folder / 'splits.csv', parse_dates=['TrainMaxLabelEnd', 'ValidationStart', 'ValidationEnd', 'ValidationMaxLabelEnd'])
-            assert splits.TrainMaxLabelEnd.lt(splits.ValidationStart).all()
-            assert splits.ValidationMaxLabelEnd.lt(cutoff).all()
-            best_rows.append({'Quarter': folder.name, 'Period': name, 'Days': days, 'MeanRankIC': best['inner_mean_rank_ic'], **best['parameters']})
-            searches += 1
-            coarse_total += len(coarse)
-            fine_total += len(fine)
-    selection = pd.concat(selection, ignore_index=True)
-    training = pd.concat(training, ignore_index=True)
-    best_frame = pd.DataFrame(best_rows).sort_values(['Quarter', 'Days'])
-    assert searches == 24 and coarse_total == 2304 and (fine_total == 1152)
-    training.to_csv(R / 'training_summary.csv', index=False)
-    selection.to_csv(R / 'feature_selection_summary.csv', index=False)
-    best_frame.to_csv(R / 'best_parameters.csv', index=False)
-    text = ''
-    for factor in RESEARCH_FACTORS:
-        for i, period in enumerate(list(PERIODS) + ['MonthEnd']):
-            long = pick(full, factor, period, 'Group10')
-            ls = pick(full, factor, period, 'TheoreticalLS')
-            text += line(TEX[factor] if i == 0 else '', FREQ[period], pct(long.AnnualReturn), f'{long.Sharpe:.2f}', pct(ls.AnnualReturn), f'{ls.Sharpe:.2f}')
-        text += '\\midrule' + '\n' if factor != RESEARCH_FACTORS[-1] else ''
-    table('factors', text)
-    text = ''
-    for factor in RESEARCH_FACTORS:
-        numbers = [int(selection[selection.Period.eq(period) & selection.Feature.eq(factor)].Selected.sum()) for period in PERIODS]
-        text += line(TEX[factor], *numbers)
-    table('selection', text)
-    text = ''
-    for row in best_frame.itertuples(index=False):
-        text += line(row.Quarter, FREQ[row.Period], row.max_depth, f'{row.learning_rate:.3f}', row.n_estimators, f'{row.corr_threshold:.2f}', row.max_features, f'{row.MeanRankIC:.3f}')
-    table('tuning', text)
-    text = ''
-    for period in PERIODS:
-        long = pick(oos, 'Pred_Score', period, 'Group10')
-        ls = pick(oos, 'Pred_Score', period, 'TheoreticalLS')
-        text += line(FREQ[period], pct(long.AnnualReturn), f'{long.Sharpe:.2f}', pct(ls.AnnualReturn), f'{ls.Sharpe:.2f}')
-    table('model', text)
-    all_performance = pd.concat([full.assign(Study='FullPeriod'), oos.assign(Study='OOS')], ignore_index=True)
-    all_performance[all_performance.Portfolio.isin(['Group10', 'TheoreticalLS'])].to_csv(R / 'long_short_summary.csv', index=False)
-    matrix = pd.read_csv(R / 'models/BiWeekly/selection/2017-02_correlation.csv', index_col=0)
-    matrix = matrix.reindex(index=RESEARCH_FACTORS, columns=RESEARCH_FACTORS)
-    matrix.to_csv(R / 'training_factor_correlation.csv')
-    fig, ax = plt.subplots(figsize=(8, 7))
-    im = ax.imshow(matrix.to_numpy(), vmin=-1, vmax=1, cmap='coolwarm')
-    labels = [NAMES[f] for f in RESEARCH_FACTORS]
-    ax.set_xticks(range(9), labels, rotation=45, ha='right')
-    ax.set_yticks(range(9), labels)
-    for i in range(9):
-        for j in range(9):
-            ax.text(j, i, f'{matrix.iloc[i, j]:.2f}', ha='center', va='center', fontsize=7)
-    fig.colorbar(im, ax=ax, shrink=0.75)
-    fig.tight_layout()
-    save(fig, 'correlation')
-    calendar = pd.DatetimeIndex(sorted(pd.read_parquet(R / 'input/daily_market.parquet', columns=['TradingDay']).TradingDay.unique()))
+    def check(ledger,trades,fee,summary=None,factor=None,period=None):
+        np.testing.assert_allclose(trades.Cost,trades.Notional*fee,atol=1e-12)
+        for portfolio,frame in ledger.groupby('Portfolio'):
+            np.testing.assert_allclose(frame.NAV,frame.Cash+frame.LongValue-frame.ShortValue,atol=1e-10)
+            np.testing.assert_allclose(frame.NAV,np.cumprod(1+frame.Return),atol=1e-10)
+            book=trades[trades.Portfolio.eq(portfolio)].copy()
+            book['Flow']=book.DeltaUnits*book.AdjPrice+book.Cost
+            flow=book.groupby('TradingDay').Flow.sum().reindex(frame.TradingDay,fill_value=0).to_numpy()
+            np.testing.assert_allclose(frame.Cash,1-np.cumsum(flow+frame.BorrowCost.to_numpy()),atol=1e-10)
+            if summary is not None:
+                record=pick(summary,factor,period,portfolio)
+                metrics=performance(frame.Return,Config())
+                for key in ['FinalNAV','AnnualReturn','Sharpe','MaxDrawdown']:
+                    np.testing.assert_allclose(record[key],metrics[key],rtol=1e-9,atol=1e-12)
+            counters['series']+=1
+        counters['ledger_rows']+=len(ledger)
+        counters['trades']+=len(trades)
 
-    def nav_figure(folder, factor, period, filename):
-        ledger = pd.read_csv(folder / factor / period / 'daily_ledger.csv', parse_dates=['TradingDay'])
-        fig, axes = plt.subplots(2, 1, figsize=(8.1, 4.7), sharex=True, gridspec_kw={'height_ratios': [1.12, 1]})
-        baseline = calendar[calendar.get_loc(ledger.TradingDay.min()) - 1]
-        colors = plt.get_cmap('tab10').colors
-        for i in range(1, 11):
-            x = ledger[ledger.Portfolio.eq(f'Group{i}')]
-            axes[0].plot([baseline, *x.TradingDay], [1.0, *x.NAV], color='black' if i == 10 else colors[i - 1], lw=1.6 if i == 10 else 0.7, label=f'G{i}', alpha=1 if i == 10 else 0.8)
-        axes[0].legend(frameon=False, ncol=5, loc='lower left', fontsize=6.5)
-        metrics = performance(ledger[ledger.Portfolio.eq('Group10')].Return, Config())
-        axes[0].set_title(f"{NAMES[factor]} | {period} | G10 CAGR {metrics['AnnualReturn']:.2%} | Sharpe {metrics['Sharpe']:.2f}", fontsize=9)
-        axes[0].set_ylabel('Long-only NAV')
-        x = ledger[ledger.Portfolio.eq('TheoreticalLS')]
-        axes[1].plot([baseline, *x.TradingDay], [1.0, *x.NAV], color='#234b68', lw=1.2)
-        metrics = performance(x.Return, Config())
-        axes[1].set_title(f"L/S 100%/100% | CAGR {metrics['AnnualReturn']:.2%} | Sharpe {metrics['Sharpe']:.2f}", fontsize=9)
-        axes[1].set_ylabel('Net L/S NAV')
-        axes[1].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-        for ax in axes:
-            ax.grid(alpha=0.2)
-            ax.axhline(1, color='gray', lw=0.5)
-        fig.tight_layout()
-        save(fig, filename)
-    for period in PERIODS:
-        nav_figure(R / 'oos', 'Pred_Score', period, 'model_' + period)
-    for factor in RESEARCH_FACTORS:
-        nav_figure(R / 'factors', factor, 'MonthEnd', factor + '_MonthEnd')
-    fig, axes = plt.subplots(1, 2, figsize=(9, 3.3))
-    for period in PERIODS:
-        d = pd.read_csv(R / 'oos/Pred_Score' / period / 'daily_ledger.csv', parse_dates=['TradingDay'])
-        for ax, portfolio in zip(axes, ['Group10', 'TheoreticalLS']):
-            f = d[d.Portfolio.eq(portfolio)]
-            ax.plot(f.TradingDay, f.NAV, label=period, lw=1)
-    for ax, title in zip(axes, ['G10 long-only', 'L/S 100% / 100%']):
-        ax.set_title(title)
-        ax.grid(alpha=0.2)
-        ax.legend(frameon=False)
-        ax.set_ylabel('Net NAV')
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-        ax.tick_params(axis='x', rotation=25)
+    for universe,slug in UNIVERSE_FOLDERS.items():
+        root=R/slug
+        current=json.loads((root/'run_config.json').read_text())
+        assert current['protocol']==PROTOCOL and current['test_refits']==0
+        summaries[universe]={}
+        for study in ['validation','test']:
+            frame=pd.read_csv(root/f'{study}_summary.csv')
+            summaries[universe][study]=frame
+            assert len(frame)==330 and set(frame.Factor)=={*FACTORS,'Pred_Score'}
+            for factor,period in frame[['Factor','Period']].drop_duplicates().itertuples(index=False,name=None):
+                folder=root/study/factor/period
+                ledger=pd.read_csv(folder/'daily_ledger.csv',parse_dates=['TradingDay'])
+                assert set(ledger.Portfolio)=={*[f'Group{i}' for i in range(1,11)],'TheoreticalLS'}
+                if study=='test':assert ledger.TradingDay.dt.year.eq(2018).all()
+                else:assert ledger.TradingDay.between('2017-01-01','2017-09-30').all()
+                groups=pd.read_parquet(folder/'signal_groups.parquet')
+                assert set(groups.Group.unique())==set(range(1,11))
+                check(ledger,pd.read_parquet(folder/'trades.parquet'),.0015,frame,factor,period)
+            for period in PERIODS:
+                folder=root/'benchmarks'/study/period
+                for cost,fee in [('net',.0015),('gross',0)]:
+                    ledger=pd.read_csv(folder/f'{cost}_ledger.csv',parse_dates=['TradingDay'])
+                    check(ledger,pd.read_parquet(folder/f'{cost}_trades.parquet'),fee)
+        for period,days in PERIODS.items():
+            folder=root/'models'/period
+            metadata=json.loads((folder/'model_config.json').read_text())
+            assert metadata['protocol']==PROTOCOL and metadata['test_refits']==0 and not metadata['test_early_stopping']
+            assert pd.Timestamp(metadata['max_training_label_end'])<TEST_START
+            assert pipeline_file_hash(folder/'model.json')==metadata['model_sha256']
+            folds=pd.read_csv(folder/'validation_refits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationEnd'])
+            assert len(folds)==3 and folds.TrainMaxLabelEnd.lt(folds.ValidationStart).all()
+            assert folds.ValidationEnd.lt(TEST_START).all()
+            selected_features=pd.read_csv(folder/'feature_selection.csv',parse_dates=['TrainMaxLabelEnd'])
+            assert selected_features.TrainMaxLabelEnd.lt(TEST_START).all()
+            selected_features['Universe']=universe
+            selected_features['Period']=period
+            selections.append(selected_features)
+            kept=selected_features.loc[selected_features.Selected,'Feature'].tolist()
+            assert kept==metadata['selected_features']
+            corr=pd.read_csv(folder/'training_correlation.csv',index_col=0)
+            for a in kept:
+                for b in kept:
+                    if a!=b:assert abs(corr.loc[a,b])<selected_features.CorrelationThreshold.iloc[0]+1e-12
+            tuning=folder/'tuning'
+            best=json.loads((tuning/'best_parameters.json').read_text())
+            coarse=pd.read_csv(tuning/'coarse_trials.csv')
+            fine=pd.read_csv(tuning/'fine_trials.csv')
+            splits=pd.read_csv(tuning/'splits.csv',parse_dates=['TrainMaxLabelEnd','ValidationStart','ValidationMaxLabelEnd'])
+            assert len(coarse)==96 and len(fine)==48 and fine.Fold.nunique()==3
+            assert splits.TrainMaxLabelEnd.lt(splits.ValidationStart).all() and splits.ValidationMaxLabelEnd.lt(TEST_START).all()
+            assert pd.Timestamp(best['max_training_label_end'])<TEST_START
+            parameters.append({'Universe':universe,'Period':period,'Days':days,
+                               'MeanRankIC':best['inner_mean_rank_ic'],**best['parameters']})
+            models.append({'Universe':universe,'Period':period,**metadata})
+            searches+=1
+            coarse_fits+=len(coarse)
+            fine_fits+=len(fine)
+    assert searches==9 and coarse_fits==864 and fine_fits==432
+    assert counters['series']==2016
+    selection=pd.concat(selections,ignore_index=True)
+    parameters=pd.DataFrame(parameters)
+    selection.to_csv(R/'feature_selection_summary.csv',index=False)
+    parameters.to_csv(R/'best_parameters.csv',index=False)
+    pd.DataFrame([{k:v for k,v in row.items() if not isinstance(v,(list,dict))} for row in models]).to_csv(R/'training_summary.csv',index=False)
+    best_model=selected[selected.Factor.eq('Pred_Score')].iloc[0]
+    model_pool=best_model.Universe
+
+    text=''
+    for factor in [*FACTORS,'Pred_Score']:
+        chosen=selected[selected.Factor.eq(factor)].iloc[0]
+        values=[]
+        for universe in ['300','500','all']:
+            candidate=comparison[comparison.Factor.eq(factor)&comparison.Universe.eq(universe)].sort_values('ValidationAnnual',ascending=False).iloc[0]
+            values.append(pct(candidate.TotalReturn))
+        text+=line(tex[factor],*values,UNIVERSE_NAMES[chosen.Universe]+'/'+freq[chosen.Period])
+    table('universe_comparison',text)
+    text=''
+    for row in selected.itertuples(index=False):
+        text+=line(tex[row.Factor],UNIVERSE_NAMES[row.Universe]+'/'+freq[row.Period],pct(row.SelectionAnnual),
+                   pct(row.TotalReturn),pct(row.BenchmarkTotal),pct(row.RelativeTotal),pct(row.LSTotal))
+    table('selected',text)
+    text=''
+    for row in selected.itertuples(index=False):
+        text+=line(tex[row.Factor],UNIVERSE_NAMES[row.Universe]+'/'+freq[row.Period],pct(row.AnnualReturn),
+                   f'{row.Sharpe:.2f}',pct(row.LSAnnual),f'{row.LSSharpe:.2f}')
+    table('annual_sharpe',text)
+    text=''
+    for row in comparison[comparison.Factor.eq('Pred_Score')].sort_values(['Universe','Period']).itertuples(index=False):
+        text+=line(UNIVERSE_NAMES[row.Universe],freq[row.Period],pct(row.ValidationAnnual),pct(row.TotalReturn),
+                   pct(row.AnnualReturn),pct(row.BenchmarkTotal),pct(row.LSTotal),f'{row.Sharpe:.2f}')
+    table('model',text)
+    text=''
+    for factor in FACTORS:
+        counts=[int(selection[selection.Universe.eq(universe)&selection.Feature.eq(factor)].Selected.sum()) for universe in ['300','500','all']]
+        text+=line(tex[factor],*counts)
+    table('selection',text)
+    text=''
+    for row in parameters.sort_values(['Universe','Days']).itertuples(index=False):
+        text+=line(UNIVERSE_NAMES[row.Universe],freq[row.Period],row.max_depth,f'{row.learning_rate:.3f}',row.n_estimators,
+                   f'{row.corr_threshold:.2f}',row.max_features,f'{row.MeanRankIC:.3f}')
+    table('tuning',text)
+    for label,cases in [('reference',[(factor,'500','Weekly') for factor in [*FACTORS,'Pred_Score']]),
+                        ('selected',[(row.Factor,row.Universe,row.Period) for row in selected.itertuples(index=False)])]:
+        for half,groups in [('low',range(1,6)),('high',range(6,11))]:
+            text=''
+            for factor,universe,period in cases:
+                values=[pct(pick(summaries[universe]['test'],factor,period,f'Group{i}').TotalReturn) for i in groups]
+                row=[tex[factor],UNIVERSE_NAMES[universe]+'/'+freq[period],*values]
+                if half=='high':
+                    b=benchmark[benchmark.Universe.eq(universe)&benchmark.Study.eq('test')&benchmark.Period.eq(period)&benchmark.Cost.eq('net')]
+                    row.append(pct(b.TotalReturn.iloc[0]))
+                text+=line(*row)
+            table(f'deciles_{label}_{half}',text)
+    text=''
+    for universe in ['300','500','all']:
+        part=benchmark[benchmark.Universe.eq(universe)&benchmark.Study.eq('test')&benchmark.Period.eq('Monthly')]
+        gross=part[part.Cost.eq('gross')].iloc[0]
+        net=part[part.Cost.eq('net')].iloc[0]
+        text+=line(UNIVERSE_NAMES[universe],pct(gross.TotalReturn),pct(net.TotalReturn),pct(net.AnnualReturn))
+    table('market_years',text)
+    text=''
+    for month in sorted(monthly.Month.unique()):
+        values=[monthly[monthly.Universe.eq(universe)&monthly.Period.eq('Monthly')&monthly.Cost.eq('net')&monthly.Month.eq(month)].Return.iloc[0] for universe in ['300','500','all']]
+        text+=line(month,*[pct(v) for v in values])
+    table('market_months',text)
+    text=''
+    for row in selected.itertuples(index=False):
+        text+=line(tex[row.Factor],UNIVERSE_NAMES[row.Universe]+'/'+freq[row.Period],pct(row.TotalReturn),pct(row.GrossTotal),
+                   pct(row.BenchmarkTotal),pct(row.RelativeTotal))
+    table('fee_comparison',text)
+    text=''
+    for universe in ['300','500','all']:
+        candidate=comparison[comparison.Universe.eq(universe)&comparison.Factor.eq('Pred_Score')].sort_values('ValidationAnnual',ascending=False).iloc[0]
+        text+=line(UNIVERSE_NAMES[universe],freq[candidate.Period],f'{candidate.MeanSignalStocks:.0f}',
+                   f'{candidate.BenchmarkMeanStocks:.0f}',pct(candidate.CoverageRatio))
+    table('coverage',text)
+
+    matrix=pd.read_csv(R/UNIVERSE_FOLDERS[model_pool]/'models'/best_model.Period/'training_correlation.csv',index_col=0)
+    matrix=matrix.reindex(index=FACTORS,columns=FACTORS)
+    matrix.to_csv(R/'training_factor_correlation.csv')
+    fig,ax=plt.subplots(figsize=(8,7))
+    image=ax.imshow(matrix.to_numpy(),vmin=-1,vmax=1,cmap='coolwarm')
+    labels=[names[factor] for factor in FACTORS]
+    ax.set_xticks(range(9),labels,rotation=45,ha='right')
+    ax.set_yticks(range(9),labels)
+    for i in range(9):
+        for j in range(9):ax.text(j,i,f'{matrix.iloc[i,j]:.2f}',ha='center',va='center',fontsize=8)
+    fig.colorbar(image,ax=ax,shrink=.75)
     fig.tight_layout()
-    save(fig, 'model_horizons')
-    appendix = ''
-    for i in range(0, 9, 2):
-        appendix += '\\clearpage' + '\n'
-        if i == 0:
-            appendix += '\\section{九因子自然月末十组净值}' + '\n'
-        for j, factor in enumerate(RESEARCH_FACTORS[i:i + 2]):
-            if j:
-                appendix += '\\vfill' + '\n'
-            appendix += f'\\resultfigure{{{factor}_MonthEnd}}{{{TEX[factor]}自然月末回测}}' + '\n'
-    (HERE / 'appendix_figures.tex').write_text(appendix)
-    test_log = (R / 'logs/tests.log').read_text()
-    tests = int(re.search('Ran (\\d+) tests', test_log).group(1))
-    assert '\nOK' in test_log
-    macros = {'Searches': searches, 'CoarseFits': coarse_total, 'FineFits': fine_total, 'CVFits': coarse_total + fine_total, 'Models': len(training), 'Series': counts['series'], 'Trades': f"{counts['trades']:,}", 'Tests': tests}
-    for period, suffix in [('Weekly', 'Week'), ('BiWeekly', 'Biweek'), ('Monthly', 'Month')]:
-        macros['Long' + suffix] = pct(pick(oos, 'Pred_Score', period, 'Group10').AnnualReturn)
-        macros['LS' + suffix] = pct(pick(oos, 'Pred_Score', period, 'TheoreticalLS').AnnualReturn)
-    (HERE / 'values.tex').write_text('\n'.join(('\\newcommand{\\' + k + '}{' + str(v) + '}' for k, v in macros.items())) + '\n')
-    template = (HERE / 'template.tex').read_text()
-    for path in (HERE / 'tables').glob('*.tex'):
-        template = template.replace('\\input{tables/' + path.name + '}', path.read_text())
-    (HERE / 'report_ready.tex').write_text(template)
-    receipt = {**counts, 'tests_passed': tests, 'groups': 10, 'candidates': list(RESEARCH_FACTORS), 'monthly_models': len(training), 'searches': searches, 'cv_fits': coarse_total + fine_total, 'round_trip_fee': 0.003, 'training_label_time_checked': True, 'inner_purge_checked': True, 'selected_pair_correlations_checked': True, 'source_hashes': config['sources']}
-    (R / 'validation.json').write_text(json.dumps(receipt, ensure_ascii=False, indent=2))
-    print(json.dumps(receipt, ensure_ascii=False, indent=2))
+    save(fig,'correlation')
+
+    def nav_figure(universe,factor,period,filename):
+        root=R/UNIVERSE_FOLDERS[universe]
+        ledger=pd.read_csv(root/'test'/factor/period/'daily_ledger.csv',parse_dates=['TradingDay'])
+        b=pd.read_csv(root/'benchmarks/test'/period/'net_ledger.csv',parse_dates=['TradingDay'])
+        long=ledger[ledger.Portfolio.eq('Group10')]
+        ls=ledger[ledger.Portfolio.eq('TheoreticalLS')]
+        assert long.TradingDay.tolist()==b.TradingDay.tolist()
+        baseline=pd.Timestamp('2017-12-29')
+        fig,axes=plt.subplots(3,1,figsize=(8.5,7.2),sharex=True,gridspec_kw={'height_ratios':[1.5,1,1]})
+        colors=plt.get_cmap('tab10').colors
+        for i in range(1,11):
+            group=ledger[ledger.Portfolio.eq(f'Group{i}')]
+            axes[0].plot([baseline,*group.TradingDay],[1.,*group.NAV],color='black' if i==10 else colors[i-1],
+                         lw=2 if i==10 else .8,label=f'G{i}',alpha=1 if i==10 else .7)
+        axes[0].plot([baseline,*b.TradingDay],[1.,*b.NAV],color='#bf2428',ls='--',lw=2,label='Pool equal weight (net)')
+        axes[0].legend(frameon=False,ncol=6,loc='lower center',bbox_to_anchor=(.5,1.01),fontsize=8,borderaxespad=0)
+        axes[0].set_title(f'2018 test | {names[factor]} | {UNIVERSE_FOLDERS[universe]} | {PERIODS[period]} trading days',pad=40)
+        axes[0].set_ylabel('Long-only NAV')
+        axes[1].plot([baseline,*ls.TradingDay],[1.,*ls.NAV],color='#234b68',lw=1.4)
+        axes[1].set_ylabel('L/S NAV')
+        axes[1].set_title(f'L/S 100% / 100% | 2018 return {ls.NAV.iloc[-1]-1:.2%}')
+        relative=long.NAV.to_numpy()/b.NAV.to_numpy()
+        axes[2].plot([baseline,*long.TradingDay],[1.,*relative],color='#2f7147',lw=1.4)
+        axes[2].set_ylabel('G10 / pool EW')
+        axes[2].set_title(f'Relative wealth | 2018 return {relative[-1]-1:.2%}')
+        axes[2].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+        axes[2].set_xlim(baseline,long.TradingDay.max())
+        for ax in axes:
+            ax.grid(alpha=.2)
+            ax.axhline(1,color='gray',lw=.6)
+        fig.tight_layout()
+        save(fig,filename)
+    nav_figure('500','Pred_Score','Weekly','reference_model')
+    nav_figure(model_pool,'Pred_Score',best_model.Period,'selected_model')
+    appendix=''
+    for i,row in enumerate(selected[selected.Factor.ne('Pred_Score')].itertuples(index=False)):
+        filename='selected_'+row.Factor
+        nav_figure(row.Universe,row.Factor,row.Period,filename)
+        appendix+=r'\clearpage'+'\n'
+        if i==0:appendix+=r'\section{按训练期验证选定的九因子：2018回测曲线}'+'\n'
+        caption=tex[row.Factor]+'；股票池：'+UNIVERSE_NAMES[row.Universe]+'；调仓：'+freq[row.Period]
+        appendix+=rf'\resultfigure{{{filename}}}{{{caption}}}'+'\n'
+    (HERE/'appendix_figures.tex').write_text(appendix)
+    expected_figures={'logo','char','correlation','reference_model','selected_model',*['selected_'+factor for factor in FACTORS]}
+    for path in (HERE/'figures').iterdir():
+        if path.suffix.lower() in ['.png','.pdf'] and path.stem not in expected_figures:path.unlink()
+    log=(R/'logs/tests.log').read_text()
+    tests=int(re.search(r'Ran (\d+) tests',log).group(1))
+    assert '\nOK' in log
+    negatives=int((selected.TotalReturn<0).sum())
+    excess_positive=int((selected.RelativeTotal>0).sum())
+    ref=summaries['500']['test']
+    ref=ref[ref.Period.eq('Weekly')&ref.Portfolio.str.match(r'Group\d+$')]
+    if abs(reference['RelativeTotal'])<.02:
+        reference_assessment='这一参照中G10与池等权表现接近，多头没有表现出明显超越池等权的能力。'
+    elif reference['RelativeTotal']<0:
+        reference_assessment='这一参照中G10落后于同池等权，不能只用市场下跌解释其表现。'
+    else:
+        reference_assessment='这一参照中G10跑赢同池等权，但市场下跌仍可能使多头绝对收益为负。'
+    if pick(summaries['500']['test'],'Pred_Score','Weekly','Group1').TotalReturn<reference['TotalReturn']:
+        reference_assessment+='G1跌幅更大，因而多空为正仍可与多头亏损同时出现。'
+    macros={'Searches':searches,'CVFits':coarse_fits+fine_fits,'CoarseFits':coarse_fits,'FineFits':fine_fits,
+            'Models':9,'ValidationModels':27,'Series':f'{counters["series"]:,}','Trades':f'{counters["trades"]:,}','Tests':tests,
+            'BestModelPool':UNIVERSE_NAMES[model_pool],'BestModelPeriod':freq[best_model.Period],
+            'BestModelValidation':pct(best_model.SelectionAnnual),'BestModelLong':pct(best_model.TotalReturn),
+            'BestModelAnnual':pct(best_model.AnnualReturn),'BestModelEW':pct(best_model.BenchmarkTotal),
+            'BestModelRelative':pct(best_model.RelativeTotal),'BestModelLS':pct(best_model.LSTotal),
+            'ReferenceLong':pct(reference['TotalReturn']),'ReferenceAnnual':pct(reference['AnnualReturn']),
+            'ReferenceEW':pct(reference['BenchmarkTotal']),'ReferenceRelative':pct(reference['RelativeTotal']),
+            'ReferenceGross':pct(reference['GrossTotal']),
+            'ReferenceAssessment':reference_assessment,
+            'ReferenceFeeGap':f'{100*(reference["GrossTotal"]-reference["TotalReturn"]):.2f}',
+            'SelectedNegative':negatives,'SelectedPositiveRelative':excess_positive,
+            'ReferenceNegativeGroups':int((ref.TotalReturn<0).sum())}
+    (HERE/'values.tex').write_text('\n'.join('\\newcommand{\\'+name+'}{'+str(value)+'}' for name,value in macros.items())+'\n')
+    template=(HERE/'template.tex').read_text()
+    for path in (HERE/'tables').glob('*.tex'):
+        needle='\\input{tables/'+path.name+'}'
+        if needle in template:template=template.replace(needle,path.read_text())
+        else:path.unlink()
+    (HERE/'report_ready.tex').write_text(template)
+    receipt={**counters,'protocol':PROTOCOL,'training':['2016-01-01','2017-12-31'],'test':['2018-01-02','2018-12-28'],
+             'test_refits':0,'selection_uses_test_returns':False,'tests_passed':tests,'groups':10,
+             'final_models':9,'training_validation_models':27,'searches':searches,'cv_fits':coarse_fits+fine_fits,
+             'benchmark_ledgers_checked':36,'round_trip_fee':.003,'time_boundaries_checked':True,
+             'model_hashes_checked':True,'selected_correlations_checked':True,'sources':config['sources']}
+    (R/'validation.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2))
+    print(json.dumps(receipt,ensure_ascii=False,indent=2))
+
+
 
 
 def build_report():
@@ -2459,12 +2860,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--data-dir', type=Path, default=BASE / 'data')
     parser.add_argument('--output-dir', type=Path, default=BASE / 'results')
+    parser.add_argument('--universe', choices=['300', '500', 'all'], default='500')
+    parser.add_argument('--compare-universes', action='store_true', help='同口径完成三池实验并比较结果')
     parser.add_argument('--with-xgboost', action='store_true', help='完整执行训练期筛选和调参')
     parser.add_argument('--prepare-only', action='store_true')
-    parser.add_argument('--models-only', action='store_true')
-    parser.add_argument('--self-test', action='store_true', help='运行内置65项自动测试')
+    parser.add_argument('--self-test', action='store_true', help='运行内置71项自动测试')
     parser.add_argument('--report', action='store_true', help='核验结果并生成根目录report.pdf')
-    parser.add_argument('--predict-start', default='2017-02-01')
     parser.add_argument('--trials', type=int, default=96)
     parser.add_argument('--finalists', type=int, default=16)
     parser.add_argument('--groups', type=int, default=10)
@@ -2478,11 +2879,16 @@ def main():
     if args.self_test:
         run_self_tests(args.output_dir)
         return
-    cfg = Config(data_dir=args.data_dir, output_dir=args.output_dir, n_groups=args.groups,
+    cfg = Config(data_dir=args.data_dir, output_dir=args.output_dir, index=args.universe, n_groups=args.groups,
                  one_way_fee=args.one_way_fee, ls_leg_weight=args.ls_leg_weight)
-    pipeline_run(cfg, with_models=args.with_xgboost or args.models_only, models_only=args.models_only,
-                 prepare_only=args.prepare_only, predict_start=args.predict_start,
-                 trials=args.trials, finalists=args.finalists)
+    if args.compare_universes:
+        run_universe_comparison(cfg, args.trials, args.finalists)
+        return
+    cfg = replace(cfg, output_dir=Path(cfg.output_dir) / UNIVERSE_FOLDERS[cfg.index])
+    if args.prepare_only:
+        pipeline_prepare_inputs(cfg)
+        return
+    fixed_pool(cfg,args.trials,args.finalists)
 
 
 if __name__ == '__main__':

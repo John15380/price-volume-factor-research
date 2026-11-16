@@ -1,0 +1,21 @@
+{
+  "origin": "fresh raw-minute calculation with current factor definitions",
+  "universe": "all",
+  "factors": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP",
+    "HF_CDPDP4",
+    "HF_LowAmpMomentum",
+    "HF_Skewness"
+  ],
+  "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
+  "trading_input_signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588",
+  "files": {
+    "features.parquet": "bb4caa804b42291feccbac219dbf4d8baef55de060556b6e76934e5f9e2ebb15",
+    "daily_market.parquet": "40d8f085a7d9158cf9eadedb6e1f96d99bc4175bc3e3a74a70172739940d332a"
+  }
+}

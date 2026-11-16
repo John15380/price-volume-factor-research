@@ -153,10 +153,10 @@ Package hyperref Warning: Rerun to get /PageLabels entry.
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd)
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd) [1]
 No file report.toc.
-[2] [3] [4] [5] [6] [7] [8] [9] [10] (./appendix_figures.tex [11] [12] [13]
-[14] [15]) [16]
-(/var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-report-6y9ltjh_/report.
-aux
+[2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16]
+(./appendix_figures.tex [17] [18] [19] [20] [21] [22] [23] [24] [25]) [26]
+(/var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-final-i_tal3ff/report.a
+ux
 
 Package natbib Warning: Citation(s) may have changed.
 (natbib)                Rerun to get citations correct.
@@ -168,7 +168,7 @@ Package rerunfilecheck Warning: File `report.out' has changed.
 (rerunfilecheck)                or use package `bookmark'.
 
  )
-Output written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-report
--6y9ltjh_/report.pdf (16 pages).
-Transcript written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-re
-port-6y9ltjh_/report.log.
+Output written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-final-
+i_tal3ff/report.pdf (26 pages).
+Transcript written on /var/folders/mq/5kd2gxsj3n35jl1yd879jgjm0000gn/T/code2-fi
+nal-i_tal3ff/report.log.

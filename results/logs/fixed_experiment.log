@@ -1,0 +1,71 @@
+2026-11-16 13:38:24,412 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l1dcachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l2cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l3cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.optional.neon'. Detail: [errno 1] Operation not permitted
+2026-11-16 13:38:25,914 INFO 5日固定模型：2016--2017标签已实现样本127810行，96候选/16晋级
+2026-11-16 13:38:25,914 INFO 10日固定模型：2016--2017标签已实现样本125896行，96候选/16晋级
+2026-11-16 13:38:25,927 INFO 20日固定模型：2016--2017标签已实现样本122403行，96候选/16晋级
+2026-11-16 13:38:31,305 WARNING Matplotlib is building the font cache; this may take a moment.
+2026-11-16 13:38:32,615 INFO tuning 初筛 24/96
+2026-11-16 13:38:33,006 INFO tuning 初筛 24/96
+2026-11-16 13:38:33,099 INFO tuning 初筛 24/96
+2026-11-16 13:38:37,997 INFO tuning 初筛 48/96
+2026-11-16 13:38:38,161 INFO tuning 初筛 48/96
+2026-11-16 13:38:38,504 INFO tuning 初筛 48/96
+2026-11-16 13:38:39,795 INFO Failed to extract font properties from /System/Library/Fonts/LastResort.otf: tuple indices must be integers or slices, not str
+2026-11-16 13:38:39,920 INFO Failed to extract font properties from /System/Library/Fonts/Apple Color Emoji.ttc: Could not set the fontsize (invalid pixel size; error code 0x17)
+2026-11-16 13:38:39,943 INFO Failed to extract font properties from /System/Library/Fonts/Supplemental/NISC18030.ttf: Could not set the fontsize (invalid pixel size; error code 0x17)
+2026-11-16 13:38:40,029 INFO Failed to extract font properties from /System/Library/PrivateFrameworks/FontServices.framework/Resources/Reserved/PingFangUI.ttc: Can not load face (locations (loca) table missing; error code 0x90)
+2026-11-16 13:38:40,074 INFO generated new fontManager
+2026-11-16 13:38:47,238 INFO tuning 初筛 72/96
+2026-11-16 13:38:47,683 INFO tuning 初筛 72/96
+2026-11-16 13:38:48,228 INFO tuning 初筛 72/96
+2026-11-16 13:38:58,582 INFO tuning 初筛 96/96
+2026-11-16 13:38:58,906 INFO tuning 初筛 96/96
+2026-11-16 13:39:00,349 INFO tuning 初筛 96/96
+2026-11-16 13:39:20,344 INFO 10日固定模型完成：HF_CDPP|HF_Skewness|HF_IdealReversal|HF_CPV|HF_LowAmpMomentum|HF_SmartMoney|HF_IdealAmplitude|HF_CDPDP|HF_CDPDP4；2018全年预测69325行，未重训
+2026-11-16 13:39:21,474 INFO 5日固定模型完成：HF_CDPP|HF_CPV|HF_Skewness|HF_IdealReversal|HF_SmartMoney|HF_LowAmpMomentum；2018全年预测69325行，未重训
+2026-11-16 13:39:24,585 INFO 20日固定模型完成：HF_CDPP|HF_Skewness|HF_CPV|HF_IdealReversal|HF_LowAmpMomentum|HF_CDPDP|HF_SmartMoney|HF_IdealAmplitude|HF_CDPDP4；2018全年预测69325行，未重训
+2026-11-16 13:39:25,367 INFO 沪深300固定实验完成：2016--2017训练，2018回测
+2026-11-16 13:39:25,450 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+2026-11-16 13:39:28,049 INFO 20日固定模型：2016--2017标签已实现样本199426行，96候选/16晋级
+2026-11-16 13:39:28,053 INFO 10日固定模型：2016--2017标签已实现样本205263行，96候选/16晋级
+2026-11-16 13:39:28,054 INFO 5日固定模型：2016--2017标签已实现样本208632行，96候选/16晋级
+2026-11-16 13:39:40,379 INFO tuning 初筛 24/96
+2026-11-16 13:39:41,386 INFO tuning 初筛 24/96
+2026-11-16 13:39:43,680 INFO tuning 初筛 24/96
+2026-11-16 13:39:49,244 INFO tuning 初筛 48/96
+2026-11-16 13:39:52,125 INFO tuning 初筛 48/96
+2026-11-16 13:39:55,510 INFO tuning 初筛 48/96
+2026-11-16 13:39:58,216 INFO tuning 初筛 72/96
+2026-11-16 13:40:02,100 INFO tuning 初筛 72/96
+2026-11-16 13:40:06,403 INFO tuning 初筛 96/96
+2026-11-16 13:40:06,793 INFO tuning 初筛 72/96
+2026-11-16 13:40:11,459 INFO tuning 初筛 96/96
+2026-11-16 13:40:15,895 INFO tuning 初筛 96/96
+2026-11-16 13:40:26,210 INFO 5日固定模型完成：HF_CDPP|HF_Skewness|HF_CPV|HF_IdealReversal；2018全年预测112767行，未重训
+2026-11-16 13:40:30,703 INFO 10日固定模型完成：HF_CDPP|HF_Skewness|HF_CPV|HF_IdealReversal|HF_SmartMoney|HF_CDPDP|HF_IdealAmplitude|HF_CDPDP4|HF_LowAmpMomentum；2018全年预测112767行，未重训
+2026-11-16 13:40:33,034 INFO 20日固定模型完成：HF_CDPP|HF_Skewness|HF_CPV|HF_IdealReversal；2018全年预测112767行，未重训
+2026-11-16 13:40:34,033 INFO 中证500固定实验完成：2016--2017训练，2018回测
+2026-11-16 13:40:34,228 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+2026-11-16 13:40:45,215 INFO 5日固定模型：2016--2017标签已实现样本1189914行，96候选/16晋级
+2026-11-16 13:40:45,224 INFO 10日固定模型：2016--2017标签已实现样本1167168行，96候选/16晋级
+2026-11-16 13:42:07,267 INFO tuning 初筛 24/96
+2026-11-16 13:42:09,890 INFO tuning 初筛 24/96
+2026-11-16 13:42:59,192 INFO tuning 初筛 48/96
+2026-11-16 13:43:11,866 INFO tuning 初筛 48/96
+2026-11-16 13:43:58,623 INFO tuning 初筛 72/96
+2026-11-16 13:44:16,230 INFO tuning 初筛 72/96
+2026-11-16 13:44:55,077 INFO tuning 初筛 96/96
+2026-11-16 13:45:18,491 INFO tuning 初筛 96/96
+2026-11-16 13:48:22,117 INFO 10日固定模型完成：HF_CDPP|HF_CPV|HF_Skewness|HF_IdealReversal|HF_CDPDP|HF_SmartMoney；2018全年预测773278行，未重训
+2026-11-16 13:48:23,079 INFO 20日固定模型：2016--2017标签已实现样本1127646行，96候选/16晋级
+2026-11-16 13:49:03,030 INFO 5日固定模型完成：HF_CDPP|HF_CPV|HF_Skewness|HF_IdealReversal|HF_SmartMoney|HF_CDPDP|HF_IdealAmplitude|HF_LowAmpMomentum；2018全年预测773278行，未重训
+2026-11-16 13:49:33,796 INFO tuning 初筛 24/96
+2026-11-16 13:50:23,052 INFO tuning 初筛 48/96
+2026-11-16 13:51:09,746 INFO tuning 初筛 72/96
+2026-11-16 13:51:57,516 INFO tuning 初筛 96/96
+2026-11-16 13:53:50,917 INFO 20日固定模型完成：HF_CDPP|HF_CPV|HF_Skewness|HF_IdealReversal|HF_CDPDP|HF_SmartMoney；2018全年预测773278行，未重训
+2026-11-16 13:53:52,414 INFO 全部A股固定实验完成：2016--2017训练，2018回测
+2026-11-16 13:53:54,217 INFO 固定2018回测比较完成：选池/期限完全来自2017训练期验证。

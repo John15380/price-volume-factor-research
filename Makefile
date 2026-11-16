@@ -4,7 +4,7 @@ PYTHON ?= python
 all: experiment report
 
 experiment:
-	$(PYTHON) code2_new.py --with-xgboost
+	$(PYTHON) code2_new.py --compare-universes
 
 test:
 	$(PYTHON) -B code2_new.py --self-test

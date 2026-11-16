@@ -63,8 +63,14 @@ test_missing_future_price_preserves_prediction_input_rows (__main__.run_self_tes
 test_prediction_score_direction_is_high_value_long (__main__.run_self_tests.<locals>.ModelTimingTests.test_prediction_score_direction_is_high_value_long) ... ok
 test_purge_uses_realization_date (__main__.run_self_tests.<locals>.ModelTimingTests.test_purge_uses_realization_date) ... ok
 test_window_excludes_old_signal_dates (__main__.run_self_tests.<locals>.ModelTimingTests.test_window_excludes_old_signal_dates) ... ok
+test_index_membership_routes_to_correct_historical_file (__main__.run_self_tests.<locals>.BenchmarkTests.test_index_membership_routes_to_correct_historical_file) ... ok
+test_single_long_matches_group_book_with_fees_and_blocked_orders (__main__.run_self_tests.<locals>.BenchmarkTests.test_single_long_matches_group_book_with_fees_and_blocked_orders) ... ok
+test_actual_quarter_validation_purges_unrealized_labels (__main__.run_self_tests.<locals>.FixedProtocolTests.test_actual_quarter_validation_purges_unrealized_labels) ... ok
+test_frozen_model_weights_do_not_depend_on_2018_features (__main__.run_self_tests.<locals>.FixedProtocolTests.test_frozen_model_weights_do_not_depend_on_2018_features) ... ok
+test_pool_selection_uses_validation_instead_of_test_returns (__main__.run_self_tests.<locals>.FixedProtocolTests.test_pool_selection_uses_validation_instead_of_test_returns) ... ok
+test_training_ends_before_2018_and_future_features_cannot_change_it (__main__.run_self_tests.<locals>.FixedProtocolTests.test_training_ends_before_2018_and_future_features_cannot_change_it) ... ok
 
 ----------------------------------------------------------------------
-Ran 65 tests in 0.842s
+Ran 71 tests in 5.446s
 
 OK

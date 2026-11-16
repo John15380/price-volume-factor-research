@@ -1,0 +1,11 @@
+2026-11-16 14:12:28,050 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l1dcachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l2cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l3cachesize'. Detail: [errno 1] Operation not permitted
+/Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.optional.neon'. Detail: [errno 1] Operation not permitted
+2026-11-16 14:12:28,104 INFO 复用同口径固定实验：沪深300
+2026-11-16 14:12:28,184 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+2026-11-16 14:12:28,258 INFO 复用同口径固定实验：中证500
+2026-11-16 14:12:28,433 INFO 已验证并复用9因子及实际交易状态输入；不复用模型预测。
+2026-11-16 14:12:28,746 INFO 复用同口径固定实验：全部A股
+2026-11-16 14:12:30,323 INFO 固定2018回测比较完成：选池/期限完全来自2017训练期验证。

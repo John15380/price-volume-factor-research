@@ -1,0 +1,4 @@
+Fold,TrainStart,TrainMaxLabelEnd,ValidationStart,ValidationEnd,SeedSignal,Features
+0,2016-01-15,2016-12-30,2017-01-01,2017-03-31,2016-12-30,HF_CDPP|HF_CPV|HF_CDPDP|HF_Skewness|HF_IdealReversal|HF_SmartMoney
+1,2016-01-15,2017-03-31,2017-04-01,2017-06-30,2017-03-31,HF_CDPP|HF_Skewness|HF_CPV|HF_CDPDP|HF_IdealReversal|HF_SmartMoney
+2,2016-01-15,2017-06-30,2017-07-01,2017-09-30,2017-06-30,HF_CDPP|HF_CPV|HF_Skewness|HF_CDPDP|HF_IdealReversal|HF_SmartMoney

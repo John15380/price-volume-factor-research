@@ -1,0 +1,27 @@
+{
+  "origin": "validated cached values: all nine columns agree with freshly recomputed preprocessing; previous commit 20a0cf5",
+  "factors": [
+    "HF_SmartMoney",
+    "HF_CPV",
+    "HF_CDPDP",
+    "HF_IdealAmplitude",
+    "HF_IdealReversal",
+    "HF_CDPP",
+    "HF_CDPDP4",
+    "HF_LowAmpMomentum",
+    "HF_Skewness"
+  ],
+  "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
+  "trading_input_signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588",
+  "files": {
+    "features.parquet": "2d6a51526e38f964f7161475ce354b65e1ff745e74ee6fcf429bb14992c6ebe8",
+    "daily_market.parquet": "7305b4e8be5acc216728ccbb4a8adb08358f8b501e8ead4ce47ec0d7ce2530f6"
+  },
+  "layout_migration": {
+    "from_commit": "8475f6c",
+    "previous_factor_signature": "12beb71859a1a8c714e85994b751cdc523b9d293f0afa12597a330b9ac74c5e5",
+    "calculation_unchanged": true,
+    "input_files_unchanged": true
+  },
+  "universe": "500"
+}

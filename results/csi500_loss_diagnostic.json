@@ -1,0 +1,21 @@
+{
+  "Universe": "500",
+  "Factor": "Pred_Score",
+  "Period": "Weekly",
+  "AnnualReturn": -0.3288850986124036,
+  "TotalReturn": -0.3213488813872851,
+  "Sharpe": -1.5478420430322104,
+  "BenchmarkAnnual": -0.3285693803450316,
+  "BenchmarkTotal": -0.3210385592175497,
+  "RelativeAnnual": -0.0004702172616647404,
+  "RelativeTotal": -0.0004570541876099954,
+  "LSAnnual": 0.1962350742235385,
+  "LSTotal": 0.1902485720015778,
+  "LSSharpe": 2.029311242414783,
+  "Days": 243,
+  "MeanSignalStocks": 461.4375,
+  "BenchmarkMeanStocks": 474.1428571428572,
+  "CoverageRatio": 0.97320352515818,
+  "GrossAnnual": -0.27294766453377495,
+  "GrossTotal": -0.26642953920041423
+}

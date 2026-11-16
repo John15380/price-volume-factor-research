@@ -1,0 +1,43 @@
+{
+  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "horizon": 20,
+  "training_start": "2016-01-01",
+  "training_end": "2017-12-31",
+  "train_rows": 199426,
+  "train_days": 458,
+  "train_signal_start": "2016-01-15",
+  "train_signal_end": "2017-11-30",
+  "max_training_label_end": "2017-12-29",
+  "test_seed_signal": "2017-12-29",
+  "test_start": "2018-01-02",
+  "test_end": "2018-12-28",
+  "selected_features": [
+    "HF_CDPP",
+    "HF_Skewness",
+    "HF_CPV",
+    "HF_IdealReversal"
+  ],
+  "parameters": {
+    "max_depth": 4,
+    "learning_rate": 0.03389848319875379,
+    "min_child_weight": 1.0,
+    "subsample": 0.7162357572029936,
+    "colsample_bytree": 0.6923652019973333,
+    "reg_alpha": 0.3301811325050761,
+    "reg_lambda": 0.8029752584783433,
+    "gamma": 0.005541732700775106,
+    "max_bin": 256,
+    "corr_threshold": 0.7,
+    "max_features": 4,
+    "n_estimators": 55
+  },
+  "validation_folds": 3,
+  "validation_refits": 3,
+  "final_fits": 1,
+  "test_refits": 0,
+  "test_early_stopping": false,
+  "model_sha256": "5971bf026dc0e324e0d2a9f7123f69682957293e06278ad1e41af185e8a875c1",
+  "xgboost_version": "3.2.0",
+  "validation_prediction_rows": 83973,
+  "test_prediction_rows": 112767
+}

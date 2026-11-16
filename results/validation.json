@@ -1,49 +1,54 @@
 {
-  "series": 726,
-  "trades": 3879682,
-  "ledger_rows": 435996,
-  "tests_passed": 65,
-  "groups": 10,
-  "candidates": [
-    "HF_SmartMoney",
-    "HF_CPV",
-    "HF_CDPDP",
-    "HF_IdealAmplitude",
-    "HF_IdealReversal",
-    "HF_CDPP",
-    "HF_CDPDP4",
-    "HF_LowAmpMomentum",
-    "HF_Skewness"
+  "series": 2016,
+  "trades": 12592543,
+  "ledger_rows": 430416,
+  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "training": [
+    "2016-01-01",
+    "2017-12-31"
   ],
-  "monthly_models": 69,
-  "searches": 24,
-  "cv_fits": 3456,
+  "test": [
+    "2018-01-02",
+    "2018-12-28"
+  ],
+  "test_refits": 0,
+  "selection_uses_test_returns": false,
+  "tests_passed": 71,
+  "groups": 10,
+  "final_models": 9,
+  "training_validation_models": 27,
+  "searches": 9,
+  "cv_fits": 1296,
+  "benchmark_ledgers_checked": 36,
   "round_trip_fee": 0.003,
-  "training_label_time_checked": true,
-  "inner_purge_checked": true,
-  "selected_pair_correlations_checked": true,
-  "source_hashes": {
-    "code2_new.py": "e1b6e09c27517fc195ba464bcd91a5cecb8085efcbf62e096d1a9d6ec4971713"
+  "time_boundaries_checked": true,
+  "model_hashes_checked": true,
+  "selected_correlations_checked": true,
+  "sources": {
+    "code2_new.py": "0bd82de4e0ad8bd07a44661b22fabe208c77d98d33ab34f6174a8a3fa3253430"
   },
-  "single_python_file": "code2_new.py",
-  "layout_source_commit": "8475f6c",
-  "prior_summary_results_unchanged": true,
-  "standalone_xgboost_smoke_check": {
-    "candidate_count": 4,
-    "validation_folds": 3,
-    "monthly_models": 1,
-    "forecasts": 600,
-    "passed": true
-  },
-  "pdf": {
-    "file": "report.pdf",
-    "pages": 16,
-    "embedded_source_files": 1,
-    "embedded_source_hash_matches": true,
+  "delivery": {
+    "report": "report.pdf",
+    "pages": 26,
+    "pdf_sha256": "3d9ef0be3cba3883f755763aa3dcf70fa3e3136bf09cf63a1dc9aa948cea51e7",
+    "single_source": "code2_new.py",
+    "embedded_source_hash_checked": true,
+    "table2_body_size_pt": 10.5,
+    "original_font_families_preserved": true,
+    "source_template_components_unchanged": true,
+    "overfull_boxes": 0,
+    "missing_glyphs": 0,
     "all_pages_rendered": true,
-    "only_visual_change_from_v6": 11,
-    "changed_page_visually_reviewed": true,
-    "original_fonts_preserved": true,
-    "sha256": "6b1c3f36015c77000cd9da5a8c545bdbdbbf31b4fb601c7ddcc8f7ab444da34a"
+    "model_weights_and_summary_hashes_unchanged_after_layout": true,
+    "all_pages_visually_reviewed": true,
+    "full_page_reviews": [
+      3,
+      4,
+      9,
+      10,
+      13,
+      14,
+      16
+    ]
   }
 }

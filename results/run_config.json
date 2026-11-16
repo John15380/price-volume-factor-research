@@ -1,5 +1,18 @@
 {
-  "universe": "point-in-time CSI500",
+  "protocol": "fixed_train_2016_2017_test_2018_v1",
+  "training": [
+    "2016-01-01",
+    "2017-12-31"
+  ],
+  "test": [
+    "2018-01-02",
+    "2018-12-28"
+  ],
+  "universes": {
+    "300": "CSI300",
+    "500": "CSI500",
+    "all": "AllA"
+  },
   "candidate_factors": [
     "HF_SmartMoney",
     "HF_CPV",
@@ -12,60 +25,15 @@
     "HF_Skewness"
   ],
   "groups": 10,
-  "one_way_fee": 0.0015,
   "round_trip_fee": 0.003,
-  "ls_leg_weight": 1.0,
-  "signal_start": "2016-01-29",
-  "predict_start": "2017-02-01",
-  "end": "2018-12-28",
-  "parameter_candidates_per_search": 96,
-  "finalists_per_search": 16,
-  "tuning_frequency": "quarterly",
-  "refit_frequency": "monthly",
-  "inner_folds": 3,
-  "seed": 20261115,
-  "cache_manifest": {
-    "origin": "validated cached values: all nine columns agree with freshly recomputed preprocessing; previous commit 20a0cf5",
-    "factors": [
-      "HF_SmartMoney",
-      "HF_CPV",
-      "HF_CDPDP",
-      "HF_IdealAmplitude",
-      "HF_IdealReversal",
-      "HF_CDPP",
-      "HF_CDPDP4",
-      "HF_LowAmpMomentum",
-      "HF_Skewness"
-    ],
-    "factor_signature": "b7728994825f1fccbd17afc18e89c181b64a9f9ce0648a9d36885f6a98814f11",
-    "trading_input_signature": "7d44c74bdda263ad0061e69ed240a4c91dfbfd65ad4618195278ec8c6d808588",
-    "files": {
-      "features.parquet": "2d6a51526e38f964f7161475ce354b65e1ff745e74ee6fcf429bb14992c6ebe8",
-      "daily_market.parquet": "7305b4e8be5acc216728ccbb4a8adb08358f8b501e8ead4ce47ec0d7ce2530f6"
-    },
-    "layout_migration": {
-      "from_commit": "8475f6c",
-      "previous_factor_signature": "12beb71859a1a8c714e85994b751cdc523b9d293f0afa12597a330b9ac74c5e5",
-      "calculation_unchanged": true,
-      "input_files_unchanged": true
-    }
-  },
+  "test_refits": 0,
+  "selection_uses_test_returns": false,
+  "selection_period": [
+    "2017-01-03",
+    "2017-09-29"
+  ],
+  "selection_metric": "chronological training-validation G10 net CAGR",
   "sources": {
-    "code2_new.py": "e1b6e09c27517fc195ba464bcd91a5cecb8085efcbf62e096d1a9d6ec4971713"
-  },
-  "code_layout": {
-    "entry": "code2_new.py",
-    "result_generation_commit": "8475f6c",
-    "change": "single-file consolidation; no factor, model or accounting changes",
-    "previous_sources": {
-      "code2_new.py": "1b2f25b3887f2c898b7ae7c652013696305d426e45c8248e59dba1a8237b5334",
-      "code2_research.py": "36e9d7160a49cdf78a346c2345bad6115ce5e7172fc0cbfdff3bc6a0ab334d31",
-      "code2_trading_data.py": "e8d6fb30adf41c404fc0eddaa416a2671ddd80eb6197cfa66bacff51040a0fb1",
-      "code2_xgboost.py": "5ed5997a06927723ffce32b5bc8f6baddfb51677ee215487948455ea42348d8c",
-      "code2_tuning.py": "e738b94aecbaec08c0f100a030e8b7fbfefeb5b90186a091a285effe2b0ef3fe",
-      "code2_pipeline.py": "4ad587ca594c8a1d82a57f5963214d3f9c0f2647af41889249cd2160dcbbfb71"
-    },
-    "unchanged_function_class_asts": 59,
-    "model_retrained_for_layout_only_change": false
+    "code2_new.py": "0bd82de4e0ad8bd07a44661b22fabe208c77d98d33ab34f6174a8a3fa3253430"
   }
 }

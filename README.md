@@ -1,66 +1,86 @@
-# 量价多因子选股实验
+# 量价多因子实验：2016—2017训练，2018回测
 
-当前只保留一个代码文件 **code2_new.py**，包含因子构造、历史交易状态、回测账本、XGBoost筛选调参、自动测试和报告生成。最终报告直接位于根目录 **report.pdf**。
+当前只有一个代码文件 **code2_new.py**；最终PDF直接输出在根目录 **report.pdf**，沿用原报告字体。Table 2及主要数表使用原模板正文五号字。
 
-| 文件或目录 | 内容 |
+| 路径 | 当前内容 |
 | --- | --- |
-| code2_new.py | 唯一Python代码和运行入口 |
-| report.pdf | 当前最终报告，沿用原报告字体 |
-| report/ | 当前报告的LaTeX源文件、模板、图像和表格 |
-| results/ | 当前实验结果、配置、调参记录、成交与净值账本 |
+| code2_new.py | 因子、交易状态、模型、回测、基准、71项测试和报告生成 |
+| report.pdf、report/ | 最终报告及其LaTeX、图表和模板 |
+| results/CSI300/ | 历史沪深300输入、固定模型、训练期验证及2018测试 |
+| results/CSI500/ | 历史中证500同口径实验 |
+| results/AllA/ | 本地覆盖全部A股同口径实验 |
+| results/ | 跨池比较、选型、十分组、月度市场表现和核验汇总 |
 | data/、otherdata/ | 原始数据 |
 | 价量多因子模型/、作业二.docx | 原研报与作业要求 |
-| requirements.txt、Makefile | 依赖和运行快捷命令 |
 
-历史代码、报告和辅助文件只保存在Git中，当前目录不保留code.py、code2.py、独立的旧模块，以及tmp、output、audit、archive目录。可重算的历史缓存和废弃中间结果已清理。
+历史code.py、code2.py、旧报告及辅助产物只保存在本地Git。当前不保留tmp、output、audit、archive等目录。
 
 ## 运行
 
 ```sh
 conda activate quant
-python code2_new.py --self-test
-python code2_new.py --with-xgboost
+python code2_new.py --compare-universes
 python code2_new.py --report
 ```
 
-`make all`执行实验和报告生成；`make test`运行内置65项测试；`make report`核验当前账本并生成根目录report.pdf。报告编译需要XeLaTeX；编译中间文件放在系统临时目录，成功或失败后均自动清理。
+`make all`执行三池实验、比较和报告；`make test`运行71项内置测试；`make report`核验当前结果并编译根目录report.pdf。报告需要XeLaTeX，编译中间文件放系统临时目录并自动清理。
 
-仅重跑模型使用`python code2_new.py --models-only`。仅验证或准备因子缓存使用`python code2_new.py --prepare-only`。缓存按因子定义、辅助行情签名与文件哈希校验；原始数据或定义变化后应移除`results/input/`再重建。报告命令使用默认`results/`中的当前结果。
+单独重跑某一池：
 
-## 实验规则
+```sh
+python code2_new.py --universe 300 --with-xgboost
+python code2_new.py --universe 500 --with-xgboost
+python code2_new.py --universe all --with-xgboost
+python code2_new.py --self-test
+```
 
-九个候选因子为SmartMoney、CPV、CDPDP′、IdealAmplitude、IdealReversal、CDPP、CDPDP-4、LowAmpMomentum、Skewness。尾部收益因子不进入当前实验和模型。
+三池比较可复用相同固定协议下已完整完成的实验；单池命令重新运行其模型和回测。`--universe`默认500，`--output-dir`指定实验结果根目录，报告命令读取默认的`results/`。`--prepare-only`只准备或校验输入。原始输入或因子定义变更后应清除对应input目录再重建；修改模型逻辑后应重跑单池命令。个股滚动分量可复用，各池截面处理分别重算。
 
-主样本为2016—2018年动态中证500。十组等权，G10为看好组；多头目标100%，理论多空每腿目标100%、总名义仓位200%。T日收盘信号，T+1开盘按历史ST、09:30停复牌及实际涨跌停价执行。受阻买入资金留现金，受阻退出头寸保留并重试。假定可借券及相应融资，未另估借券和市场冲击成本。
+## 固定训练及选型
 
-**手续费为双边千三：每次买、卖各0.0015，完整往返0.003。** 两条腿均按实际成交额收费。年化收益按净值几何年化，夏普按日收益计算，仅展示当前口径。
+- 最终训练信号位于2016—2017，标签退出日严格早于2018-01-01；训练标签的行情对象本身不包含2018。
+- 三折内层时间验证分别为2017年Q1、Q2、Q3；折内训练只使用季度开始前已经实现的标签。
+- 每池、每个5/10/20交易日期限搜索96候选，前16组晋级三折；早停使用训练期验证RMSE，参数按验证RankIC稳定性选择。每折单独计算相关性去重与因子质量。
+- 2017年前三季度的时间验证预测用于选股票池和期限：每个因子及XGBoost在9个候选中，按验证G10费后年化择优。此步骤不读取2018收益。
+- 最后用2016—2017完整已实现样本重新筛选因子并拟合一次，2018全年权重和参数冻结。2018的因子及动态成分仍按当日信息更新。
+- 三池共9次搜索、1296次验证拟合；另拟合27个训练期验证模型和9个最终固定模型。2018重训次数为0。
 
-XGBoost分别预测5/10/20交易日连续开盘收益的截面去均值。模型每月使用过去12个月、标签已实现的样本。相关性去重和择优仅在训练期执行，每个内层验证折重新筛选。季度搜索96组候选，前16组晋级3折时间验证；使用历史验证RMSE早停，按验证RankIC稳定性择优。相关阈值、因子预算与树模型参数共同搜索。
+训练期验证参与联合选型，只用于选择。当前是既有样本上的固定划分回测，不将历史验证数字视为新增时期的前瞻证据。
 
-当前结果包含24次季度搜索、3456次验证拟合、69个月度模型。此次单文件整理保持因子、交易和模型计算逻辑不变，沿用已完成的实验结果，重新执行测试、输入校验和726条组合账本核验。
+## 因子与交易
 
-## 结果检索
+候选共9项：SmartMoney、CPV、CDPDP′、IdealAmplitude、IdealReversal、CDPP、CDPDP-4、LowAmpMomentum、Skewness。尾部收益不进入研究。低振幅长端动量高值做多，其余低值做多；模型高分做多，方向不依2018结果翻转。
 
-- `results/factor_summary.csv`：九因子、四种调仓期限、十组及多空绩效。
-- `results/oos_summary.csv`：共同预测日历下的单因子和模型绩效。
-- `results/long_short_summary.csv`：G10多头及理论多空汇总。
-- `results/feature_selection_summary.csv`：69个模型的评分、去重理由与入选名单。
-- `results/best_parameters.csv`：季度最优参数；完整候选及验证折记录在`results/models/`。
-- `results/run_config.json`：配置、源码及输入校验值、单文件整理来源。
-- `results/validation.json`：账本、费用、训练时间及相关性核验。
+十组等权，G10为看好组，每个多头组目标100%；理论多空多、空各100%，总名义仓位200%。T日收盘信号，T+1开盘执行。2017最后交易日生成首次测试信号，2018首个交易日开盘建仓。使用历史ST、09:30停复牌及真实涨跌停价；受阻买入留现金，退出受阻保留重试，末日尝试退出。假定借券及融资可得，未另估借券和冲击成本。
 
-大体积行情、缓存、逐笔账本和模型权重保留在当前数据或结果目录；代码、配置、汇总、搜索记录和报告纳入Git。
+**手续费为买卖各0.0015，完整往返0.003。** 年化按250交易日几何复利，夏普按算术日收益计算，只保留当前口径。
+
+基准是同池全体合格股票等权，不按因子缺失或模型预测过滤，使用相同日历、开盘成交限制、现金处理及费用；它不是官方市值加权指数。另以相同信号及限制、费用率为0重跑基准与所选多头。预测覆盖差异也会影响相对收益。
+
+## 结果文件
+
+各池分别有`validation/`、`test/`账本及对应summary.csv，`models/`保存固定权重、参数、训练边界、入选因子和验证/测试预测，`benchmarks/`保存同期等权基准。
+
+- `results/universe_comparison.csv`：90个候选的验证年化及2018多头、基准、相对和多空收益。
+- `results/validation_candidates.csv`：选池、选期限的全部训练期验证候选。
+- `results/selected_cases.csv`：仅按验证选出的十项策略，含2018评价及无费多头。
+- `results/decile_returns.csv`：训练期验证与2018各900条十分组绩效，含累计、年化和夏普。
+- `results/benchmark_summary.csv`、`benchmark_month_returns.csv`：等权累计及月度收益。
+- `results/csi500_loss_diagnostic.json`：中证5005日固定模型的2018市场与费用比较。
+- `results/best_parameters.csv`、`feature_selection_summary.csv`、`training_summary.csv`：9个最终模型汇总。
+- `results/validation.json`：现金账本、费用、标签日期、模型冻结及选型范围核验。
+
+报告展示十组2018累计收益、同池等权曲线、多空和相对净值，全部曲线注明股票池与期限。三池其他测试结果完整保留，但不根据2018最高收益替换选图组合。
 
 ## Git历史
 
-本目录是独立本地Git仓库，无远程推送。旧文件从历史提交读取，无需保留当前副本：
+本目录是独立本地仓库，无远程推送。旧文件从历史读取：
 
 ```sh
 git log --oneline
 git show 0898d32:code.py
 git show ffea9f9:code2.py
-git show 20a0cf5:code2_new.py
-git show 8475f6c:output/pdf/report.pdf > /tmp/report-v6.pdf
+git show 58a98cc:code2_new.py
 ```
 
-v1 `0898d32`保存原code.py；v2 `ffea9f9`保存原code2.py及原报告；v3 `fc27027`、v4 `28a827a`、v5 `20a0cf5`、v6 `8475f6c`保存此前各轮版本。`4228193`补存原始笔记本和报告素材；之后的最新提交为本轮单文件整理。
+v1 `0898d32`为原code.py，v2 `ffea9f9`为原code2.py；v3 `fc27027`、v4 `28a827a`、v5 `20a0cf5`、v6 `8475f6c`保留此前各轮。`4228193`补存原始笔记本及报告素材，v7 `58a98cc`为单文件整理。最新提交记录本轮固定划分、三池比较、基准和报告。
