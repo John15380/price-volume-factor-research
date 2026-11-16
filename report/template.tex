@@ -20,7 +20,7 @@ pdftitle={量价因子合成与XGBoost多空回测},pdfauthor={岳瀚阳}}
 \setcounter{tocdepth}{1}
 \newcommand{\resultfigure}[2]{\begin{figure}[H]\centering
 \includegraphics[width=.96\linewidth,height=.70\textheight,keepaspectratio]{#1.pdf}
-\caption{#2。上图在同一坐标中绘制G1--G10净值与费后多空净值，粗蓝线为多空，灰虚线为同池等权市场背景；下图为十分组费后累计收益柱状图。多空每腿100\%，实际收益来自独立账本。}\end{figure}}
+\caption{#2。上图叠加G1--G10与价格约束下的费后多空净值，粗蓝线为多空，灰虚线为同池等权市场背景；下图为十分组费后累计收益。多空每腿目标100\%，拒单后实际敞口可不对称；仍假定券源可得。}\end{figure}}
 \input{values.tex}
 \begin{document}
 \raggedbottom
@@ -34,13 +34,14 @@ pdftitle={量价因子合成与XGBoost多空回测},pdfauthor={岳瀚阳}}
 \Title{\themytitle}{\themyauthor}{\themystudentid}
 \myabstract{
 本文以2016--2017年为训练期、2018年为固定测试期，在历史沪深300、中证500与本地全部A股三个股票池中研究九个量价因子及XGBoost合成因子。
-本报告以费后多空组合为主要评价对象，并用十分组收益柱状图诊断排序效果。
+本报告以开盘新融券卖出价格约束下的理论多空为主要评价对象，并用十分组收益柱状图诊断排序效果。
 多空目标为G10做多、G1做空，每腿100\%、总名义敞口200\%；买卖各收0.0015，完整往返0.003。
 
 XGBoost训练标签仍为个股未来N日开盘收益减去同日截面均值，损失为平方误差；验证RMSE用于早停，RankIC稳定性用于选择超参数。
 股票池和5/10/20交易日期限另按训练期验证的费后多空年化确定，2018不参与选型或重训。
 执行lag为1个交易日：T收盘信号在T+1开盘执行，标签对应T+1至T+N+1开盘。
 按上述训练期规则选定的模型为\BestModelPool、\BestModelPeriod，2018费后多空累计收益\BestModelLS，年化\BestModelLSAnnual，夏普\BestModelLSSharpe，最大回撤\BestModelLSDrawdown。
+这些数值属于券源仍假定可得、仅加入价格必要条件的历史压力测试；尚未建立实盘可实现性。原无独立融券价格约束的4.79夏普不再作为主结论。
 完整保留三池九个模型及全部候选结果，图中十分组柱高不替代实际多空账本收益。
 }
 \keyword{因子合成；XGBoost；RankIC；多空收益；十分组；lag}
@@ -53,10 +54,10 @@ XGBoost训练标签仍为个股未来N日开盘收益减去同日截面均值，
 
 \textbf{主要结果只评价多空组合的累计收益、年化、夏普及最大回撤。}
 G1--G10各组独立持有的净值曲线与收益柱状图用于诊断排序，不再作为单独的多头策略绩效展开讨论。
-实际多空使用独立现金与持仓账本，目标多、空各100\%，总名义敞口200\%；组合收益不能直接用两个组的期末累计收益相减代替。
+多空使用独立现金与持仓账本，目标多、空各100\%，目标总名义敞口200\%；拒单后实际多空敞口可以不对称。组合收益不能直接用两个组的期末累计收益相减代替。
 
 股票池包括T日历史沪深300、历史中证500及本地行情覆盖的全部A股，每项策略有三池$\times$三个期限共9个候选。
-2016--2017用于训练和验证，2018为冻结后的测试；因子入选、参数、股票池及期限均不依据2018收益反向调整。
+2016--2017用于训练和验证，2018为本轮冻结规则下的回溯测试。选型函数不读取2018收益；因子来自后续研报且同一区间已多轮研究，因此2018不属于未经研究接触的新时期证据。
 
 \section{数据与执行规则}
 分钟行情覆盖2016--2018年731个交易日，日行情额外提供200交易日预热。个股滚动分量可以复用，各股票池的截面处理独立重算。
@@ -183,7 +184,7 @@ N & 特征附加lag & 执行lag & 标签区间 & 最晚训练信号 & 标签实�
 每池每期限有三次外层历史内部搜索和一次最终搜索，每次均搜索96组，最近一折初筛，前16组晋级三折精筛。
 初筛最多300树、25轮早停；精筛最多1200树、50轮早停，均不使用2018数据。
 选择分数为三折日RankIC均值减0.1倍折间标准差，树数取获胜候选三折最优树数中位数。
-总计\Searches 次搜索、\CVFits 次验证拟合，另有\ValidationModels 个训练期验证模型和\Models 个最终固定模型。
+上一版共完成\Searches 次搜索、\CVFits 次验证拟合，另有\ValidationModels 个训练期验证模型和\Models 个最终固定模型，本轮核验后复用其权重并重跑成交。
 其中27次搜索服务外层逐季预测，9次搜索在2017年末服务2018最终模型；下表仅列最终模型参数。
 
 \begin{table}[H]\centering\normalsize
@@ -232,7 +233,7 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 
 \clearpage
 \section{九个XGBoost模型的多空结果}
-模型保持个股收益平方误差训练及内层RankIC选参，本轮重算嵌套外层预测和选池、选期限；最终模型也重新搜索、拟合，仍不使用2018标签。
+模型保持个股收益平方误差训练及内层RankIC选参。本轮执行层变更不改变学习目标；逐项核对学习代码AST、输入哈希和权重后，复用上一版36次搜索及已拟合模型，重新生成全部预测和价格约束下的交易账本，再以2017嵌套验证选池、选期限。
 下面保留全部九个模型，2018更高的其他候选仍不用于反向更换选图配置。
 
 \begin{table}[H]\centering\normalsize
@@ -243,7 +244,14 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 \input{tables/model.tex}\bottomrule
 \end{tabular}\end{table}
 按训练期多空选出的模型为\BestModelPool、\BestModelPeriod，2018累计\BestModelLS、年化\BestModelLSAnnual、夏普\BestModelLSSharpe，最大回撤\BestModelLSDrawdown。
-结果依赖每腿100\%及可借券、融资假设，不将这种200\%总名义敞口的多空与100\%股票池等权视为等风险组合。
+这些结果仍依赖券源和融资假设，且拒单后的实际净敞口可能显著偏多。不能将目标200\%总敞口组合与100\%股票池等权视为等风险组合，也不能把价格约束后的夏普称为实盘夏普。
+
+\begin{table}[H]\centering\normalsize
+\caption{验证选定的\BestModelPool、\BestModelPeriod 模型：价格约束后的借券费情景}
+\begin{tabular}{lrrr}\toprule
+借券年费假设 & 累计收益 & 年化收益 & 夏普\\\midrule
+\input{tables/selected_borrow.tex}\bottomrule
+\end{tabular}\end{table}
 
 \subsection{十分组柱状图怎么读}
 每张图的柱高是同一个股票池、同一个期限中G1--G10各组在2018独立持有的费后累计收益。
@@ -255,6 +263,48 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 
 \clearpage
 \resultfigure{selected_model}{XGBoost；股票池：\BestModelPool；调仓：\BestModelPeriod；2018测试}
+
+\clearpage
+\section{卖空执行与高夏普敏感性}
+沪深规则对融券卖出设有独立价格要求：当天尚无成交时，申报价格不得低于前收盘价，且不接受融券卖出的市价申报\cite{ssemargin,szsemargin}。
+本轮把普通卖出与新开、加空分开，以原始开盘价和参考前收盘价检查开盘限价的必要条件。低开拒绝新增空头，不补选；已有多头可照常卖出，已有空头仍可回补。
+\textbf{通过价格条件不等于已经证明集合竞价成交，连续竞价更不能自动沿用历史开盘价。}
+
+本节固定使用原审计对象“全部A股、5日XGBoost”，与本轮验证选出的展示配置分别报告。原新增空头成交金额中\ReferenceRejectedShort 不满足该开盘必要条件。
+同信号加入约束后的累计收益为\ReferenceConstrainedReturn、年化\ReferenceConstrainedAnnual、夏普\ReferenceConstrainedSharpe，平均净多敞口为\ReferenceConstrainedNet。
+收益变化同时包含成交机会和市场敞口变化，不能全部解释为排序能力消失。
+
+\begin{table}[H]\centering\normalsize
+\caption{固定审计对象的敏感性：累计收益与夏普}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrrr}\toprule
+情景 & 无价格约束累计 & 夏普 & 价格约束累计 & 夏普\\\midrule
+\input{tables/execution_controls.tex}\bottomrule
+\end{tabular}\end{table}
+借券5\%/10\%/20\%按前收盘空头市值、250交易日均摊计提，只是费率情景，非实际合同的自然日账单。额外滞后信号不足时保持现金。
+两种执行模式各以10个固定种子随机错配分组，并对前三个相同种子去交易费重跑，完整结果保留在\path{results/execution/scenarios.csv}；费后随机高负夏普也可能来自换手费用。
+
+\begin{table}[H]\centering\normalsize
+\caption{逐日可加收益贡献的全年算术和；不等于几何累计收益}
+\begin{tabular}{lrr}\toprule
+贡献 & 无价格约束 & 价格约束\\\midrule
+\input{tables/attribution.tex}\bottomrule
+\end{tabular}\end{table}
+
+\clearpage
+\subsection{实际敞口与券源边界}
+\begin{table}[H]\centering\normalsize
+\caption{本轮验证选定策略的平均日末名义敞口/NAV}
+\begin{tabular}{llrrr}\toprule
+策略 & 股票池/期限 & 多头 & 空头 & 净敞口\\\midrule
+\input{tables/exposures.tex}\bottomrule
+\end{tabular}\end{table}
+\begin{figure}[H]\centering
+\includegraphics[width=.94\linewidth,height=.35\textheight,keepaspectratio]{execution_sensitivity.pdf}
+\caption{固定审计对象：两种成交假设的净值和实际净敞口；仍未核验历史券源。}
+\end{figure}
+本地缺少历史融券资格、账户券源、借券召回及容量数据，不用沪深300与中证500成分并集代替。严格券源模式要求当日09:15前可知的资格及账户总借券持仓股数上限；缺失记录禁止新增借券，不凭空假设已有借券被召回。已知上限收紧则回补，受阻继续重试。
+当前主结果仍未纳入真实券源、保证金、融资成本、订单队列、冲击及容量验证；模型现金也未分为信用账户可用、担保及受限融券卖出款。价格压力测试未解决全部交易可实现性问题。时间因果性、数值一致性和交易可实现性须分别评价。
 
 \clearpage
 \section{手续费、核验与复现}
@@ -283,6 +333,8 @@ lag定义与实际训练末日见\path{results/training_lag.csv}。
 \bibitem{cpv} 东吴证券．高频价量相关性，意想不到的选股因子．2020-02-23。
 \bibitem{cdpdp} 东吴证券．CPV因子错位版，价量自相关性中蕴藏的选股信息．2021-03-01。
 \bibitem{ky} 开源证券．独家量价因子的高频测试．2021-09-24，第7--8页。
+\bibitem{ssemargin} 上海证券交易所．融资融券交易实施细则（2015年修订），第十二、十三条．\href{https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20150912_3988867.shtml}{官方通知及附件}。
+\bibitem{szsemargin} 深圳证券交易所．融资融券交易实施细则，2018年存档，第2.10、2.11条．\href{https://docs.static.szse.cn/www/marketServices/deal/finance/busRules/W020180328434234201669.pdf}{官方规则存档}。
 \bibitem{amp} 开源证券．振幅因子的隐藏结构．2020-05-16，第5--7页。
 \bibitem{xgb} XGBoost官方文档．Python API与目标函数说明．\url{https://xgboost.readthedocs.io/}；实际环境版本3.2.0。
 \end{thebibliography}

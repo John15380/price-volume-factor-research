@@ -1,8 +1,9 @@
 {
   "series": 2016,
-  "trades": 12594438,
+  "trades": 12221436,
   "ledger_rows": 430416,
-  "protocol": "fixed_train_2016_2017_test_2018_nested_v2",
+  "short_entry_trades_checked": 229549,
+  "protocol": "nested_v2_short_opening_price_v3",
   "training": [
     "2016-01-01",
     "2017-12-31"
@@ -15,7 +16,7 @@
   "selection_metric": "nested chronological validation net long-short CAGR",
   "test_refits": 0,
   "selection_uses_test_returns": false,
-  "tests_passed": 74,
+  "tests_passed": 85,
   "groups": 10,
   "final_models": 9,
   "training_validation_models": 27,
@@ -27,6 +28,10 @@
   "nested_parameter_availability_checked": true,
   "outer_searches": 27,
   "final_searches": 9,
+  "short_policy": "opening_price",
+  "historical_inventory_supplied": false,
+  "executable_sharpe_established": false,
+  "short_entry_price_checks_passed": true,
   "model_hashes_checked": true,
   "selected_correlations_checked": true,
   "decile_bar_figures": 10,
@@ -36,6 +41,6 @@
   "execution_lag_trading_days": 1,
   "additional_feature_lag": 0,
   "sources": {
-    "code2_new.py": "c9055948f4e957aab27c6534854368e87ad947f0ca4180c0c53b87a13af11621"
+    "code2_new.py": "b70f5b886fcb5ad3f9ff23379ec0d0fe7b1d3ad4f94e745d2c088a8adeee1b62"
   }
 }
