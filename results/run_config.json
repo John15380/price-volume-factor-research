@@ -32,8 +32,20 @@
     "2017-01-03",
     "2017-09-29"
   ],
-  "selection_metric": "chronological training-validation G10 net CAGR",
+  "selection_metric": "chronological training-validation net long-short CAGR",
+  "evaluation_focus": "long_short",
+  "training_label": "stock-level cross-section demeaned N-day open return",
+  "training_objective": "reg:squarederror",
+  "early_stopping_metric": "validation weighted RMSE",
+  "hyperparameter_metric": "mean validation daily RankIC - 0.1 * fold standard deviation",
+  "additional_feature_lag": 0,
+  "execution_lag_trading_days": 1,
+  "label_horizons": [
+    5,
+    10,
+    20
+  ],
   "sources": {
-    "code2_new.py": "0bd82de4e0ad8bd07a44661b22fabe208c77d98d33ab34f6174a8a3fa3253430"
+    "code2_new.py": "6c3313e2cd792f17ea0123787824c99e681667a28888fd573da16263bca81baf"
   }
 }

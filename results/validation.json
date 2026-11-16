@@ -11,6 +11,8 @@
     "2018-01-02",
     "2018-12-28"
   ],
+  "evaluation_focus": "long_short",
+  "selection_metric": "training-validation net long-short CAGR",
   "test_refits": 0,
   "selection_uses_test_returns": false,
   "tests_passed": 71,
@@ -24,31 +26,32 @@
   "time_boundaries_checked": true,
   "model_hashes_checked": true,
   "selected_correlations_checked": true,
+  "decile_bar_figures": 10,
+  "combined_decile_and_long_short_nav_figures": 10,
+  "training_objective": "reg:squarederror",
+  "hyperparameter_metric": "RankIC stability",
+  "execution_lag_trading_days": 1,
+  "additional_feature_lag": 0,
   "sources": {
-    "code2_new.py": "0bd82de4e0ad8bd07a44661b22fabe208c77d98d33ab34f6174a8a3fa3253430"
+    "code2_new.py": "6c3313e2cd792f17ea0123787824c99e681667a28888fd573da16263bca81baf"
   },
   "delivery": {
-    "report": "report.pdf",
-    "pages": 26,
-    "pdf_sha256": "3d9ef0be3cba3883f755763aa3dcf70fa3e3136bf09cf63a1dc9aa948cea51e7",
-    "single_source": "code2_new.py",
-    "embedded_source_hash_checked": true,
-    "table2_body_size_pt": 10.5,
-    "original_font_families_preserved": true,
-    "source_template_components_unchanged": true,
-    "overfull_boxes": 0,
-    "missing_glyphs": 0,
+    "pages": 21,
+    "pdf_sha256": "1b167535a7326819788df72928ae92546ce0c520138a0674a99263b050867498",
     "all_pages_rendered": true,
-    "model_weights_and_summary_hashes_unchanged_after_layout": true,
     "all_pages_visually_reviewed": true,
     "full_page_reviews": [
-      3,
-      4,
-      9,
-      10,
-      13,
-      14,
-      16
-    ]
+      6,
+      11
+    ],
+    "combined_groups_and_ls_on_same_axes": true,
+    "ten_decile_bar_figures": 10,
+    "all_100_bar_values_checked_against_ledgers": true,
+    "embedded_source_hash_checked": true,
+    "table2_body_size_pt": 10.5,
+    "original_fonts_preserved": true,
+    "weights_predictions_and_raw_test_summaries_unchanged_from_v8": true,
+    "overfull_boxes": 0,
+    "missing_glyphs": 0
   }
 }

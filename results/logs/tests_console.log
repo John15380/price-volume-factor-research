@@ -1,15 +1,15 @@
-研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 76.98it/s]
-研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 100.67it/s]
-研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 95.39it/s]
-研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 96.10it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 102.80it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 115.29it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 122.23it/s]
+研报分阶段合成:   0%|          | 0/1 [00:00<?, ?it/s]研报分阶段合成: 100%|██████████| 1/1 [00:00<00:00, 119.95it/s]
 /Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l1dcachesize'. Detail: [errno 1] Operation not permitted
 /Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l2cachesize'. Detail: [errno 1] Operation not permitted
 /Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.l3cachesize'. Detail: [errno 1] Operation not permitted
 /Users/runner/work/crossbow/crossbow/arrow/cpp/src/arrow/util/cpu_info.cc:239: IOError: sysctlbyname failed for 'hw.optional.neon'. Detail: [errno 1] Operation not permitted
-2026-11-16 13:39:42,946 INFO 5日固定模型：2016--2017标签已实现样本15420行，4候选/1晋级
-2026-11-16 13:39:43,750 INFO 5日固定模型完成：HF_CDPP|HF_SmartMoney|HF_IdealReversal|HF_CDPDP|HF_Skewness|HF_CDPDP4；2018全年预测7830行，未重训
-2026-11-16 13:39:43,766 INFO 5日固定模型：2016--2017标签已实现样本15420行，4候选/1晋级
-2026-11-16 13:39:44,513 INFO 5日固定模型完成：HF_CDPP|HF_SmartMoney|HF_IdealReversal|HF_CDPDP|HF_Skewness|HF_CDPDP4；2018全年预测7830行，未重训
+2026-11-16 14:51:10,517 INFO 5日固定模型：2016--2017标签已实现样本15420行，4候选/1晋级
+2026-11-16 14:51:11,032 INFO 5日固定模型完成：HF_CDPP|HF_SmartMoney|HF_IdealReversal|HF_CDPDP|HF_Skewness|HF_CDPDP4；2018全年预测7830行，未重训
+2026-11-16 14:51:11,043 INFO 5日固定模型：2016--2017标签已实现样本15420行，4候选/1晋级
+2026-11-16 14:51:11,515 INFO 5日固定模型完成：HF_CDPP|HF_SmartMoney|HF_IdealReversal|HF_CDPDP|HF_Skewness|HF_CDPDP4；2018全年预测7830行，未重训
 test_blocked_exit_keeps_position_and_retries (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_blocked_exit_keeps_position_and_retries) ... ok
 test_drawdown_includes_initial_capital_and_daily_path (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_drawdown_includes_initial_capital_and_daily_path) ... ok
 test_ex_rights_continuous_prices_and_no_future_feedback (__main__.run_self_tests.<locals>.CorrectedPipelineTests.test_ex_rights_continuous_prices_and_no_future_feedback) ... ok
@@ -79,10 +79,10 @@ test_index_membership_routes_to_correct_historical_file (__main__.run_self_tests
 test_single_long_matches_group_book_with_fees_and_blocked_orders (__main__.run_self_tests.<locals>.BenchmarkTests.test_single_long_matches_group_book_with_fees_and_blocked_orders) ... ok
 test_actual_quarter_validation_purges_unrealized_labels (__main__.run_self_tests.<locals>.FixedProtocolTests.test_actual_quarter_validation_purges_unrealized_labels) ... ok
 test_frozen_model_weights_do_not_depend_on_2018_features (__main__.run_self_tests.<locals>.FixedProtocolTests.test_frozen_model_weights_do_not_depend_on_2018_features) ... ok
-test_pool_selection_uses_validation_instead_of_test_returns (__main__.run_self_tests.<locals>.FixedProtocolTests.test_pool_selection_uses_validation_instead_of_test_returns) ... ok
+test_pool_selection_uses_validation_long_short_instead_of_long_or_test (__main__.run_self_tests.<locals>.FixedProtocolTests.test_pool_selection_uses_validation_long_short_instead_of_long_or_test) ... ok
 test_training_ends_before_2018_and_future_features_cannot_change_it (__main__.run_self_tests.<locals>.FixedProtocolTests.test_training_ends_before_2018_and_future_features_cannot_change_it) ... ok
 
 ----------------------------------------------------------------------
-Ran 71 tests in 7.847s
+Ran 71 tests in 5.630s
 
 OK

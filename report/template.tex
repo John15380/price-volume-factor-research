@@ -11,16 +11,16 @@
 \makeatother
 \setcitestyle{numbers,square}
 \hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue!55!black,
-pdftitle={基于量价因子的十组回测与XGBoost选股},pdfauthor={岳瀚阳}}
+pdftitle={量价因子合成与XGBoost多空回测},pdfauthor={岳瀚阳}}
 \renewcommand{\today}{2026年11月16日}
 \mycourse{《量化投资》}
-\mytitle{基于量价因子的十组回测与XGBoost选股}
+\mytitle{量价因子合成与XGBoost多空回测}
 \myauthor{岳瀚阳}\mystudentid{3230104443}\myschool{管理学院}\myteacher{曾涛、彭旺}
 \setlength{\emergencystretch}{2em}
 \setcounter{tocdepth}{1}
 \newcommand{\resultfigure}[2]{\begin{figure}[H]\centering
 \includegraphics[width=.96\linewidth,height=.70\textheight,keepaspectratio]{#1.pdf}
-\caption{#2。上图为十个独立多头组，G10为看好组，红色虚线为同池全体等权费后基准；中图为每腿100\%目标的费后理论多空；下图为G10净值除以基准净值。}\end{figure}}
+\caption{#2。上图在同一坐标中绘制G1--G10净值与费后多空净值，粗蓝线为多空，灰虚线为同池等权市场背景；下图为十分组费后累计收益柱状图。多空每腿100\%，实际收益来自独立账本。}\end{figure}}
 \input{values.tex}
 \begin{document}
 \raggedbottom
@@ -33,57 +33,49 @@ pdftitle={基于量价因子的十组回测与XGBoost选股},pdfauthor={岳瀚�
 \setlength{\headheight}{18pt}
 \Title{\themytitle}{\themyauthor}{\themystudentid}
 \myabstract{
-本文按固定时间划分开展量价因子选股实验：2016--2017年用于训练，2018年用于回测。
-在历史沪深300、中证500及本地覆盖的全部A股三个股票池中构造9个候选因子，
-执行十组多头与理论多空回测，并以同池全体合格股票的等权组合作为市场参照。
-信号在T日收盘后形成，T+1开盘执行；买卖各收0.0015，完整往返0.003。
+本文以2016--2017年为训练期、2018年为固定测试期，在历史沪深300、中证500与本地全部A股三个股票池中研究九个量价因子及XGBoost合成因子。
+本报告以费后多空组合为主要评价对象，并用十分组收益柱状图诊断排序效果。
+多空目标为G10做多、G1做空，每腿100\%、总名义敞口200\%；买卖各收0.0015，完整往返0.003。
 
-XGBoost分别预测5、10、20交易日连续开盘收益。因子去重、择优、调参及选池、选期限均只使用训练期数据。
-每池每期限搜索96组候选，前16组晋级2017年前三个季度的三折时间验证。
-最后使用2016--2017年已实现标签拟合\Models 个固定模型，2018全年不重训、不重新选参。
-总计\Searches 次搜索、\CVFits 次验证拟合，另有\ValidationModels 个训练期验证重拟合。
-按训练期验证确定的XGBoost组合为\BestModelPool、\BestModelPeriod，
-2018年费后多头累计收益\BestModelLong，同池等权\BestModelEW，相对净值收益\BestModelRelative。
-报告完整列出十分组收益、三池结果、市场月度变化与费用反事实；2018年收益不反向用于选择展示组合。
+XGBoost训练标签仍为个股未来N日开盘收益减去同日截面均值，损失为平方误差；验证RMSE用于早停，RankIC稳定性用于选择超参数。
+股票池和5/10/20交易日期限另按训练期验证的费后多空年化确定，2018不参与选型或重训。
+执行lag为1个交易日：T收盘信号在T+1开盘执行，标签对应T+1至T+N+1开盘。
+按上述训练期规则选定的模型为\BestModelPool、\BestModelPeriod，2018费后多空累计收益\BestModelLS，年化\BestModelLSAnnual，夏普\BestModelLSSharpe，最大回撤\BestModelLSDrawdown。
+完整保留三池九个模型及全部候选结果，图中十分组柱高不替代实际多空账本收益。
 }
-\keyword{量价因子；固定训练；XGBoost；2018回测；十组收益；等权基准}
+\keyword{因子合成；XGBoost；RankIC；多空收益；十分组；lag}
 \tableofcontents
 
 \clearpage
-\section{课题具体说明}
-研究基于原作业和本地研报，在2016--2017年完成选型与训练，于2018年统一测试。
-九候选包括聪明钱、CPV、CDPDP$^{\prime}$、理想振幅、理想反转、CDPP、四象限CDPDP、低振幅长端动量和分钟偏度。
-前八项来自研报定义或其原始引用，分钟偏度为原作业扩展；不纳入尾部收益因子。
+\section{课题说明与评价口径}
+研究根据原作业与本地研报构造SmartMoney、CPV、CDPDP$^{\prime}$、IdealAmplitude、IdealReversal、CDPP、CDPDP-4、LowAmpMomentum及Skewness九个候选，不纳入尾部收益因子。
+单因子及模型分数均分为十组：G10为看好组，G1为看空组；长端动量高值做多，其余因子低值做多，模型高预测分数做多，方向不依2018结果翻转。
 
-单因子和模型均采用十等分组，G10统一为看好组，G1为看空组。
-因子方向预先确定：低振幅长端动量高值做多，其余因子低值做多，模型为高预测值做多。
-每个多头组初始净资产为1、目标多头100\%；多空组合多、空各100\%，总名义敞口200\%，
-独立维护持仓、现金及实际费用，不能把十组收益简单相减视为已经完成成交的策略。
+\textbf{主要结果只评价多空组合的累计收益、年化、夏普及最大回撤。}
+G1--G10各组独立持有的净值曲线与收益柱状图用于诊断排序，不再作为单独的多头策略绩效展开讨论。
+实际多空使用独立现金与持仓账本，目标多、空各100\%，总名义敞口200\%；组合收益不能直接用两个组的期末累计收益相减代替。
 
-沪深300、中证500使用当时历史成分；全部A股限于本地日行情覆盖的A股证券。
-每项策略有三池$\times$三个固定期限共9个候选，选图组合由训练期时间验证决定。
-固定20交易日不称作自然月。2018年仅做一次冻结后的评估，不用其收益挑股票池、期限、因子方向或参数。
+股票池包括T日历史沪深300、历史中证500及本地行情覆盖的全部A股，每项策略有三池$\times$三个期限共9个候选。
+2016--2017用于训练和验证，2018为冻结后的测试；因子入选、参数、股票池及期限均不依据2018收益反向调整。
 
-\section{数据描述与交易处理}
-分钟文件覆盖2016--2018年731个交易日，日行情额外提供200个交易日预热。
-个股分钟和滚动窗口可复用，截面去极值、中性化和标准化在各股票池内分别计算。
-因子及动态成分在2018年仍按当日信息更新；冻结的是模型权重、入选因子、参数和选池/期限规则。
-模型使用原生缺失值处理，评分入口只要求当日有至少3个候选因子，不查看未来标签是否完整。
+\section{数据与执行规则}
+分钟行情覆盖2016--2018年731个交易日，日行情额外提供200交易日预热。个股滚动分量可以复用，各股票池的截面处理独立重算。
+2018的因子与动态成分继续按当日信息更新，模型权重、入选因子和超参数保持冻结。
 
 \begin{table}[H]\centering\normalsize
-\caption{数据用途与时间对齐}
+\caption{数据和成交处理}
 \begin{tabularx}{\linewidth}{p{28mm}X}\toprule
-数据 & 处理方式\\\midrule
-分钟行情 & 分钟开高低收、成交量、真实成交额及成交笔数；构造10日、20日信号。\\
-官方复权 & 使用当日可知因子形成连续价格；收益及排序统一单位，实际限价判断仍用原价。\\
-历史ST & T日剔除ST信号；执行日ST仅限制风险增加，减仓与回补仍允许。\\
-停复牌 & 按09:30时段判断开盘成交，不使用稍后复牌价或盘中高低点倒推早盘成交。\\
+项目 & 处理方式\\\midrule
+分钟数据 & 开高低收、成交量、真实成交额及成交笔数，按当日已结束的分钟构造信号。\\
+官方复权 & 连续价格使用当日可知复权因子，实际限价判断使用原始报价。\\
+ST、停复牌 & T日剔除ST及停牌信号，执行日按09:30状态判断；ST仅限制风险增加，不阻止减仓或回补。\\
 实际限价 & 开盘等于上限不买、等于下限不卖；缺失或与报价冲突时阻止可疑成交。\\
-成分、市值与资格 & T日历史成分、市值和20日风格变量；上市满60交易日以全历史首次正报价近似，剔除当日ST与停牌信号。\\\bottomrule
+历史成分和资格 & 按T日历史成分和市值，上市满60交易日以全历史首次正报价近似。\\
+交易费用 & 每次实际买卖各收0.0015，建仓、换仓、再平衡及退出均计费。\\\bottomrule
 \end{tabularx}\end{table}
-受阻买入留现金，受阻退出保留并逐日重试；未知行情沿用最近估值并标记。
-2017年最后一个交易日收盘生成首次测试信号，2018年首个交易日开盘建仓，末日开盘尝试退出。
-未另计借券、融资和冲击成本；理论多空依赖可借券及融资假设。
+受阻买入留现金，退出受阻保留并重试；未知行情沿用最近估值并标记，末日开盘尝试退出。
+假设可借券和相应融资，未另计借券、融资及市场冲击成本，因此多空属于上述假设下的研究组合。
+图中的同池全体合格股票等权净值仅作市场背景，不是官方市值加权指数；其100\%目标敞口与多空200\%总名义敞口不同，不以两者差值报告等风险超额收益。
 
 \clearpage
 \section{因子构造逻辑}
@@ -111,70 +103,99 @@ Skewness & 计算日内相邻分钟收益的三阶标准化中心矩，再取20�
 
 
 
+
+
 \clearpage
-\section{固定训练、时间验证与2018冻结回测}
+\section{固定训练、时间验证与2018测试}
 \begin{table}[H]\centering\normalsize
-\caption{严格分开的训练、验证与测试范围}
+\caption{固定时间划分与信息截止}
 \begin{tabularx}{\linewidth}{p{35mm}X}\toprule
-环节 & 时间和信息约束\\\midrule
-最终训练 & 2016--2017年信号，且标签退出日必须早于2018年1月1日；生成训练标签的行情本身截止2017年。\\
-内层第1折 & 训练标签在2017年1月1日前实现，验证2017年第一季度。\\
-内层第2折 & 训练标签在2017年4月1日前实现，验证2017年第二季度。\\
-内层第3折 & 训练标签在2017年7月1日前实现，验证2017年第三季度。\\
-选池及期限 & 使用上述时间验证预测回测的G10费后年化；不读取2018收益。\\
-2018测试 & 最终9个模型一次拟合后全年冻结，无重训、无测试期早停、无测试期重新去重择优。\\\bottomrule
+环节 & 时间及约束\\\midrule
+最终训练 & 2016--2017年信号，标签退出日严格早于2018-01-01；生成训练标签的行情本身截止2017年。\\
+验证第1折 & 训练标签在2017-01-01前实现，验证2017年第一季度。\\
+验证第2折 & 训练标签在2017-04-01前实现，验证2017年第二季度。\\
+验证第3折 & 训练标签在2017-07-01前实现，验证2017年第三季度。\\
+超参数选择 & 三折日RankIC均值减0.1倍折间标准差，早停仅看训练期验证RMSE。\\
+股票池、期限选择 & 按上述训练期验证预测回测的费后多空年化择优，不读取2018收益。\\
+2018测试 & 最终9个固定模型全年不重训，不重新早停、去重或调整参数。\\\bottomrule
 \end{tabularx}\end{table}
-标签为$O^{adj}_{t+N+1}/O^{adj}_{t+1}-1$的截面去均值，$N$分别为5、10、20。
-跨入2018年才实现的标签不进入训练；例如年末信号即使发生在2017年，也不能因其信号日较早而进入训练。
-2017年第四季度仍进入最终拟合；参数验证窗口固定为前三季度，便于三个期限使用同一验证回测区间。
+2017年第四季度进入最终完整训练；跨入2018才实现的标签不能进入训练。
+时间验证也在每个季度开始前剔除尚未实现的训练标签。最终选型使用训练期验证，验证收益不是独立测试证据；2018仅用于本轮冻结后的评价。
 
-验证阶段每折只用该季度开始前已实现的训练标签拟合；季度衔接时，用前一交易日收盘信号在下一交易日开盘执行。
-验证预测与真实交易回测均保留当时可计算但未来标签缺失的股票，不以未来缺失过滤预测入口。
-参数选择及选池、选期限共用训练期验证，因此验证收益只用于选型，不能作为独立测试证据；2018仅用于本轮冻结后的测试评价。
+\section{XGBoost如何合成因子，以及lag是什么}
+每个样本是一只股票在T日的因子向量，模型输出合成分数：
+\[
+s_{i,t}=f_{\theta}(F_{1,i,t},\ldots,F_{9,i,t}).
+\]
+训练标签为
+\[
+r^{(N)}_{i,t}=\frac{O^{adj}_{i,t+N+1}}{O^{adj}_{i,t+1}}-1,\qquad
+y^{(N)}_{i,t}=r^{(N)}_{i,t}-\overline{r^{(N)}_{t}}.
+\]
+横线表示同日可用标签的截面均值。它是\textbf{个股相对收益标签}，不是G10/G1实际组合的费后多空收益，也不是把每天一个RankIC值作为股票标签。
+
+训练采用日期总权重相同的平方误差，XGBoost目标为\texttt{reg:squarederror}；早停采用验证RMSE。
+RankIC用于评价截面排序及选择超参数；费后多空用于选择股票池、期限并检验经济效果。
+这三个环节分别对应训练损失、统计验证和策略评价，本轮没有将训练损失替换为多空收益或直接优化RankIC。
+标签本身未扣交易费，策略选型和最终多空收益均按实际成交扣费。
 
 \clearpage
-\section{相关性去重与训练期因子择优}
-相关性使用训练期逐日截面Spearman相关并等权平均；质量为日RankIC绝对均值除以标准差。
-至少20个有效IC日、训练行覆盖不少于50\%，按质量顺序择优；与已选代表的相关系数绝对值达到阈值即剔除。
-阈值0.70/0.80/0.90和最多4/6/9项的预算与树模型参数一起搜索。
-每个内层折在自己的训练部分重算筛选；最终模型在2016--2017年完整已实现样本上重新筛选并拟合一次。
+\subsection{三种不同的时间参数}
+\begin{table}[H]\centering\normalsize
+\caption{代码的lag、持有期及最后可训练信号}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rrrrll}\toprule
+N & 特征附加lag & 执行lag & 标签区间 & 最晚训练信号 & 标签实现截止\\\midrule
+\input{tables/lag.tex}\bottomrule
+\end{tabular}\end{table}
+\textbf{特征附加lag为0}：使用T日收盘后已知的因子，没有额外整体\texttt{shift(k)}。
+\textbf{执行lag为1个交易日}：T日收盘信号在T+1开盘执行。
+\textbf{预测跨度N为5、10、20个交易日}：从T+1开盘持有至T+N+1开盘，因此退出偏移分别为6、11、21。
+固定20交易日不等于自然月。因子的10日、20日、160日计算窗口是回看窗口，不是执行lag。
+
+所有偏移按交易日历计算。例如2017-12-29收盘信号在2018-01-02开盘首次执行，虽然跨越自然日和假期，执行lag仍为1个交易日。
+2017年末信号可以用于首次测试预测，但其在2018才实现的收益标签不进入训练。
+预测期限越长，最后可训练的信号日期越早，标签实现日仍可到2017-12-29。
+
+\section{训练期相关性去重与择优}
+相关性用训练期逐日截面Spearman相关并等权平均；质量为日RankIC绝对均值除以标准差。
+至少20个有效IC日且训练行覆盖不少于50\%；按质量选择代表，相关绝对值达到阈值就剔除。
+阈值0.70/0.80/0.90及最多4/6/9项预算与树参数联合搜索，各验证折只在自己的训练部分重算筛选。
+最终模型用2016--2017完整已实现样本筛选并拟合一次，2018不再重新选择因子。
 
 \begin{figure}[H]\centering
-\includegraphics[width=.82\linewidth,height=.40\textheight,keepaspectratio]{correlation.pdf}
-\caption{训练期所选模型（\BestModelPool、\BestModelPeriod）的2016--2017年相关矩阵}
+\includegraphics[width=.82\linewidth,height=.38\textheight,keepaspectratio]{correlation.pdf}
+\caption{训练期多空选定模型（\BestModelPool、\BestModelPeriod）的训练期相关矩阵}
 \end{figure}
 \begin{table}[H]\centering\normalsize
-\caption{最终固定模型中的因子入选次数：每个股票池3个期限}
+\caption{最终固定模型的因子入选次数：每池3个期限}
 \begin{tabular}{lrrr}\toprule
-候选因子 & 沪深300 & 中证500 & 全部A股\\\midrule
+因子 & 沪深300 & 中证500 & 全部A股\\\midrule
 \input{tables/selection.tex}\bottomrule
 \end{tabular}\end{table}
 
 \clearpage
-\section{XGBoost充分调参与最终参数}
-每池每期限进行一次完整搜索：96组初筛，前16组晋级三折时间验证。
-初筛最多300树、25轮早停；精筛最多1200树、50轮早停。
-早停仅监控训练期验证的加权RMSE，按三折日RankIC均值减0.1倍折间标准差择优。
-最终树数为获胜候选在三折的最优树数中位数；2018测试过程不设置评估集，也不调整树数。
+\section{参数搜索与RankIC验证}
+每池每期限搜索96组，最近一折初筛，前16组晋级三折精筛。
+初筛最多300树、25轮早停；精筛最多1200树、50轮早停，均不使用2018数据。
+选择分数为三折日RankIC均值减0.1倍折间标准差，树数取获胜候选三折最优树数中位数。
+总计\Searches 次搜索、\CVFits 次验证拟合，另有\ValidationModels 个训练期验证模型和\Models 个最终固定模型。
 
 \begin{table}[H]\centering\normalsize
-\caption{固定实验的搜索空间}
+\caption{超参数搜索空间}
 \begin{tabularx}{\linewidth}{p{44mm}X}\toprule
-参数 & 搜索范围\\\midrule
+参数 & 范围\\\midrule
 max\_depth & 2、3、4、5、6\\
 learning\_rate & 对数均匀0.015--0.20\\
 min\_child\_weight & 1、3、10、30、60、100\\
-subsample / colsample & 各自均匀0.55--1.00\\
+subsample / colsample & 各自0.55--1.00\\
 reg\_alpha / reg\_lambda & $\alpha=0$或$10^{-4}$至约2；$\lambda=0.1$至100\\
 gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 相关阈值 / 因子预算 & 0.70、0.80、0.90；最多4、6、9项\\\bottomrule
 \end{tabularx}\end{table}
-日期总训练权重相同，避免股票较多的日期主导损失；随机种子固定。
-共完成\Searches 次搜索、\CVFits 次验证拟合；为计算训练期策略验证收益另拟合\ValidationModels 个折内模型，
-最后拟合\Models 个固定模型用于2018全年。候选与验证边界均保留在各池models子目录。
 
 \begin{table}[H]\centering\normalsize
-\caption{2016--2017训练期选出的九个最终配置}
+\caption{RankIC选出的九个固定模型配置}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{llrrrrrr}\toprule
 股票池 & 期限 & 深度 & 学习率 & 树数 & 相关阈值 & 因子上限 & 验证RankIC\\\midrule
@@ -182,171 +203,71 @@ gamma / max\_bin & $\gamma=0$或$10^{-5}$至0.1；128或256箱\\
 \end{tabular}\end{table}
 
 \clearpage
-\section{训练期选池与2018三池比较}
-对九个因子及XGBoost，分别按2017年前三季度时间验证预测的G10费后年化，在三池三期限中择优。
-该规则在查看2018结果之前固定。下面每池一列也先在训练期验证中选出该池的期限，再列对应的2018累计收益；
-不是把每池2018年表现最高的期限拿来汇报。
+\section{按训练期多空选择股票池与期限}
+九因子与XGBoost各有三池三期限共9个候选。在训练期时间验证预测上建立相同的费后多空账本，按多空年化最高确定展示配置。
+每池一列也先用训练期多空确定该池期限，再列相应2018多空累计收益；没有按2018最高收益回选期限。
 
 \begin{table}[H]\centering\normalsize
-\caption{三池比较：训练期验证选期限后的2018费后累计收益}
+\caption{三池比较：验证选期限后的2018费后多空累计收益}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrl}\toprule
-策略 & 沪深300 & 中证500 & 全部A股 & 训练期选图池/期限\\\midrule
+策略 & 沪深300 & 中证500 & 全部A股 & 验证选图池/期限\\\midrule
 \input{tables/universe_comparison.tex}\bottomrule
 \end{tabular}\end{table}
 
 \begin{table}[H]\centering\normalsize
-\caption{训练期选定的十项组合：验证与2018测试结果}
+\caption{按训练期多空选定的十项策略：2018表现}
 \setlength{\tabcolsep}{3pt}
 \begin{tabular}{llrrrrr}\toprule
-策略 & 股票池/期限 & 验证年化 & 2018多头 & 池等权 & 相对收益 & 多空收益\\\midrule
+策略 & 股票池/期限 & 验证年化 & 测试累计 & 测试年化 & 夏普 & 最大回撤\\\midrule
 \input{tables/selected.tex}\bottomrule
 \end{tabular}\end{table}
-除验证列为年化外，其余收益列均为2018累计收益。
-相对收益为$\mathrm{NAV}_{G10}/\mathrm{NAV}_{EW}-1$，不是两条累计收益直接相减。
-2018年可能存在表现更高的其他候选，仍不以其结果反向更换图中组合。
+所有列均为费后多空指标，验证年化仅用于选型；其余为2018固定测试结果。最大回撤保留负号。
+多空净值由实际持仓、现金与费用决定，夏普和年化均来自同一日收益序列。
 
 \clearpage
-\section{九个固定XGBoost模型的2018回测}
-下面完整列出三个股票池和三个期限，便于比较；每个模型2018年都使用2017年底冻结的权重和入选因子。
-G10多头及各组均有独立初始资金1；理论多空为多、空各100\%，资本敞口不同。
+\section{九个XGBoost模型的多空结果}
+模型训练损失及RankIC超参数选择保持原方法，本轮只将股票池和期限的选择依据转为训练期费后多空表现，未重新使用2018拟合权重。
+下面保留全部九个模型，2018更高的其他候选仍不用于反向更换选图配置。
 
 \begin{table}[H]\centering\normalsize
-\caption{固定模型：训练期验证与2018多头、多空收益}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{llrrrrrr}\toprule
-股票池 & 期限 & 验证年化 & 多头累计 & 多头年化 & 池等权累计 & 多空累计 & 多头夏普\\\midrule
+\caption{固定模型：训练期验证与2018费后多空表现}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrr}\toprule
+股票池 & 期限 & 验证年化 & 测试累计 & 测试年化 & 夏普 & 最大回撤\\\midrule
 \input{tables/model.tex}\bottomrule
 \end{tabular}\end{table}
+按训练期多空选出的模型为\BestModelPool、\BestModelPeriod，2018累计\BestModelLS、年化\BestModelLSAnnual、夏普\BestModelLSSharpe，最大回撤\BestModelLSDrawdown。
+结果依赖每腿100\%及可借券、融资假设，不将这种200\%总名义敞口的多空与100\%股票池等权视为等风险组合。
 
-\begin{table}[H]\centering\normalsize
-\caption{预测覆盖与全体等权基准：每池按训练期选定的模型期限}
-\begin{tabular}{llrrr}\toprule
-股票池 & 期限 & 平均评分股票数 & 平均基准股票数 & 数量比\\\midrule
-\input{tables/coverage.tex}\bottomrule
-\end{tabular}\end{table}
-基准在当日股票池全体合格股票中等权，不按因子缺失或模型预测过滤；策略受分钟数据及因子可计算性限制。
-它是同池的等权市场参照，不是官方市值加权指数，覆盖差异也会影响相对收益。
-两者使用相同调仓、开盘限制、ST、停复牌、现金处理和每边0.0015费用。
-
-\clearpage
-\subsection{所选组合的年化收益与夏普}
-下表统一按2018实际日收益计算，列出训练期所选九因子及模型的收益和风险。多头与理论多空敞口不同，需结合各自口径阅读。
-
-\begin{table}[H]\centering\normalsize
-\caption{2018年所选组合的年化收益与夏普}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{llrrrr}\toprule
-策略 & 股票池/期限 & 多头年化 & 多头夏普 & 多空年化 & 多空夏普\\\midrule
-\input{tables/annual_sharpe.tex}\bottomrule
-\end{tabular}\end{table}
+\subsection{十分组柱状图怎么读}
+每张图的柱高是同一个股票池、同一个期限中G1--G10各组在2018独立持有的费后累计收益。
+上方同时保留十个组的净值曲线，并将多空净值绘在同一个坐标系中，全部从初始净值1开始。
+柱状图保留收益正负，不改画成去均值或超额收益；G10为看好端，G1为看空端，用于检查排序是否有效、是否大致单调。
+它不要求每个组都盈利，也不要求每一期都严格单调。
+实际多空组合按自己的净资产和头寸逐期交易，因此\textbf{G10累计收益减G1累计收益不等于实际多空累计收益}。
+多空结果以图上方的独立净值曲线和表格为准。
 
 \clearpage
-\section{十个多头组分别赚亏多少}
-以下数字统一为\textbf{2018年费后累计收益}，G1至G10都是独立的100\%目标多头组合。
-十列拆成两表，保持正文五号字。先列中证500固定5日参照，再列训练期验证确定的各策略组合。
-
-\begin{table}[H]\centering\normalsize
-\caption{中证5005日参照：2018年G1至G5多头收益}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{llrrrrr}\toprule
-策略 & 股票池/期限 & G1 & G2 & G3 & G4 & G5\\\midrule
-\input{tables/deciles_reference_low.tex}\bottomrule
-\end{tabular}\end{table}
-\begin{table}[H]\centering\normalsize
-\caption{中证5005日参照：2018年G6至G10与全体等权收益}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{llrrrrrr}\toprule
-策略 & 股票池/期限 & G6 & G7 & G8 & G9 & G10 & 池等权\\\midrule
-\input{tables/deciles_reference_high.tex}\bottomrule
-\end{tabular}\end{table}
-这一参照的100个多头组中，\ReferenceNegativeGroups 个2018累计收益为负。
-多组同时亏损时，应先看同池等权的下跌幅度，再判断G10是否改善了持股结果。
+\resultfigure{selected_model}{XGBoost；股票池：\BestModelPool；调仓：\BestModelPeriod；2018测试}
 
 \clearpage
-\subsection{训练期选定组合的十分组收益}
-每行十组都来自同一个股票池和同一个期限，没有拼接不同池的组别。
+\section{手续费、核验与复现}
+\textbf{手续费保持双边千三：每次实际买卖各0.0015，完整往返0.003。}
+多、空两腿都对实际成交计费，初始建仓、换仓、漂移再平衡和退出均计入。
+年化按实际日净值几何复利及250交易日计算，夏普按日收益计算。
 
-\begin{table}[H]\centering\normalsize
-\caption{训练期所选组合：2018年G1至G5多头收益}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{llrrrrr}\toprule
-策略 & 股票池/期限 & G1 & G2 & G3 & G4 & G5\\\midrule
-\input{tables/deciles_selected_low.tex}\bottomrule
-\end{tabular}\end{table}
-\begin{table}[H]\centering\normalsize
-\caption{训练期所选组合：2018年G6至G10与全体等权收益}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{llrrrrrr}\toprule
-策略 & 股票池/期限 & G6 & G7 & G8 & G9 & G10 & 池等权\\\midrule
-\input{tables/deciles_selected_high.tex}\bottomrule
-\end{tabular}\end{table}
-2018的全部900条分组绩效以及训练期验证分组均保存在\path{results/decile_returns.csv}，
-含累计、年化与夏普；图中所选十项组合及选型依据见\path{results/selected_cases.csv}。
+已检查\Series 条组合账本、\Trades 笔成交的现金、持仓、费用及净值，全部最终训练标签在2018前实现。
+模型文件哈希保持冻结，\Tests 项测试通过，包含改变2018特征不影响最终模型权重和参数的检查。
+选择股票池与期限的函数只读训练期验证多空指标，2018收益不参与选择。
 
-\clearpage
-\section{为什么多头亏损：市场方向与费用}
-模型标签是相对股票截面平均值的收益，学习的是池内排序；正预测值不等于股票绝对收益必定为正。
-G10的目标多头仓位始终为100\%，本实验没有大盘择时或动态降低净敞口规则。
-因此，选出跌幅较小的股票可以获得正相对收益，但多头仍会受到下跌市场拖累。
-\begin{table}[H]\centering\normalsize
-\caption{2018年股票池全体等权：固定20日调仓}
-\begin{tabular}{lrrr}\toprule
-股票池 & 无费累计收益 & 费后累计收益 & 费后年化\\\midrule
-\input{tables/market_years.tex}\bottomrule
-\end{tabular}\end{table}
+唯一源码是\path{code2_new.py}，最终报告为根目录\path{report.pdf}。
+三池实验分别放在\path{results/CSI300/}、\path{results/CSI500/}、\path{results/AllA/}；
+多空汇总见\path{results/selected_cases.csv}，所选策略的100条分组柱值见\path{results/selected_decile_returns.csv}，
+lag定义与实际训练末日见\path{results/training_lag.csv}。
+历史代码和报告只保存在本地Git，当前不保留旧版本副本。
 
-\begin{table}[H]\centering\normalsize
-\caption{2018年股票池等权费后月收益：固定20日调仓}
-\begin{tabular}{lrrr}\toprule
-月份 & 沪深300 & 中证500 & 全部A股\\\midrule
-\input{tables/market_months.tex}\bottomrule
-\end{tabular}\end{table}
-全年累计下跌不等于每天或每月都跌，月度表可直接看出反弹区间。
-月收益由该月实际日收益复利得到，全年收益是月收益的连乘，不是加总。
-等权基准与实际指数权重不同，不能将它的数值直接称为官方沪深300或中证500指数涨跌幅。
-
-\clearpage
-\subsection{相对市场表现与费用反事实}
-中证5005日固定XGBoost在2018的多头累计收益为\ReferenceLong，同池等权为\ReferenceEW，
-相对净值收益为\ReferenceRelative。市场下行会拖累多头绝对收益，但是否跑赢等权仍需逐项判断。
-\ReferenceAssessment
-将相同信号和成交限制下的费率设为0，多头累计收益为\ReferenceGross，
-与费后相差\ReferenceFeeGap 个百分点。它是费用反事实差，费用还会改变后续资金、成交和复利路径，
-不能将现金费用简单相加当作精确收益归因。
-
-\begin{table}[H]\centering\normalsize
-\caption{训练期选定组合：2018费后多头、无费多头与等权}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{llrrrr}\toprule
-策略 & 股票池/期限 & G10费后 & G10无费 & 池等权 & 相对收益\\\midrule
-\input{tables/fee_comparison.tex}\bottomrule
-\end{tabular}\end{table}
-
-十项训练期所选策略中，\SelectedNegative 项2018费后多头累计收益为负，
-\SelectedPositiveRelative 项相对净值收益大于0。应分别看市场方向、排序效果和费用拖累，
-不能只由多空为正推断多头必然盈利。无费反事实仍执行真实限价和停复牌约束。
-
-\clearpage
-\resultfigure{reference_model}{固定模型参照；股票池：中证500；调仓：5交易日；2018测试}
-\clearpage
-\resultfigure{selected_model}{按训练期验证所选XGBoost；股票池：\BestModelPool；调仓：\BestModelPeriod；2018测试}
-
-\clearpage
-\section{手续费、结果核验与复现}
-\textbf{手续费保持双边千三：每次买、卖各收成交额的0.0015，完整往返0.003。}
-两条腿分别按实际成交扣费，建仓、调仓、漂移再平衡及退出均计入。
-程序核验\Series 条组合账本、\Trades 笔成交的现金、持仓、净值和费用；年化按250个交易日几何复利，
-夏普按实际算术日收益计算，只展示当前口径。
-
-全部最终模型的训练标签退出日早于2018；三折训练标签均在相应验证开始前实现。
-2018模型文件哈希经检查保持冻结，选图清单可仅由训练期验证结果重建。
-当前\Tests 项自动测试通过，其中包含改变2018特征不影响训练结果和最终模型权重的检查。
-
-当前唯一代码为\path{code2_new.py}，根目录报告为\path{report.pdf}，
-报告源在\path{report/}，三池当前实验分别放在\path{results/CSI300/}、\path{results/CSI500/}、\path{results/AllA/}。
-训练期验证与2018测试结果分开保存，汇总在\path{results/}根目录；历史代码、报告只放在本地Git中。
-\noindent\attachfile[icon=Paperclip]{../code2_new.py}\quad 完整源码、内置测试及报告生成入口。\par
+\noindent\attachfile[icon=Paperclip]{../code2_new.py}\quad 唯一完整源码及内置测试。\par
 \texttt{python code2\_new.py --compare-universes}\par
 \texttt{python code2\_new.py --report}\par
 \texttt{python code2\_new.py --self-test}
@@ -357,7 +278,7 @@ G10的目标多头仓位始终为100\%，本实验没有大盘择时或动态降
 \bibitem{cdpdp} 东吴证券．CPV因子错位版，价量自相关性中蕴藏的选股信息．2021-03-01。
 \bibitem{ky} 开源证券．独家量价因子的高频测试．2021-09-24，第7--8页。
 \bibitem{amp} 开源证券．振幅因子的隐藏结构．2020-05-16，第5--7页。
-\bibitem{xgb} XGBoost官方文档．Python API与参数说明．\url{https://xgboost.readthedocs.io/}；环境版本3.2.0。
+\bibitem{xgb} XGBoost官方文档．Python API与目标函数说明．\url{https://xgboost.readthedocs.io/}；实际环境版本3.2.0。
 \end{thebibliography}
 \appendix
 \input{appendix_figures.tex}

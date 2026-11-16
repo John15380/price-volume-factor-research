@@ -1,0 +1,4 @@
+Horizon,AdditionalFeatureLag,ExecutionLagTradingDays,EntryOffset,ExitOffset,LastTrainingSignal,LastLabelEnd
+5,0,1,1,6,2017-12-21,2017-12-29
+10,0,1,1,11,2017-12-14,2017-12-29
+20,0,1,1,21,2017-11-30,2017-12-29
