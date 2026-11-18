@@ -1,6 +1,6 @@
 {
   "mode": "verified frozen models; regenerated predictions identical",
-  "training_baseline_commit": "98be798",
+  "training_baseline_commit": "8943d436d36cca37ebdd18eab143b5f17c1c5e47",
   "learning_ast_unchanged": true,
   "model_sha256": "c0f65afe4475fa3bdccce723a51a1c0abd5b81b249a99293b80f05fbf8b5cb69",
   "outer_model_sha256": {
