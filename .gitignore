@@ -22,3 +22,4 @@ __pycache__/
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+/价量多因子模型/

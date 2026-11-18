@@ -1644,7 +1644,12 @@ def frozen_execution_predictions(features,training_market,days,destination,trial
     """仅改变组合执行时，验证学习代码及历史模型后重新预测，绝不重新选参。"""
     import ast
     import subprocess
-    baseline='98be798'
+    baseline=subprocess.check_output([
+        'git','log','HEAD','--format=%H','--fixed-strings',
+        '--grep=v13: remove CDPP, retrain eight-factor XGBoost and report all 81 backtests',
+        '-1'],cwd=BASE,text=True).strip()
+    if not baseline:
+        raise RuntimeError('缺少八因子训练基准提交，不能复用冻结模型。')
     original=subprocess.check_output(['git','show',baseline+':code2_new.py'],cwd=BASE,text=True)
     before=ast.parse(original)
     after=ast.parse(Path(__file__).read_text())
